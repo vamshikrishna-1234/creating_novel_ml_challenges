@@ -1,0 +1,137 @@
+from pathlib import Path
+
+
+def prepare(raw: Path, public: Path, private: Path) -> None:
+    import random as _rnd
+    import numpy as np
+    import pandas as pd
+
+    raw, public, private = Path(raw), Path(public), Path(private)
+
+    interactions = pd.read_csv(raw / "interactions.csv")
+    candidates = pd.read_csv(raw / "candidates.csv")
+    requestors = pd.read_csv(raw / "requestors.csv")
+    selections = pd.read_csv(raw / "selections.csv")
+
+    rng = _rnd.Random(987654321)
+    np_rng = np.random.RandomState(99)
+
+    # ---- Split sessions 80/20, ensure cold-start requestors in test ----
+    all_sessions = sorted(selections["session_id"].tolist())
+    rng_split = _rnd.Random(1122334455)
+    rng_split.shuffle(all_sessions)
+
+    split_idx = int(len(all_sessions) * 0.8)
+    train_sids = set(all_sessions[:split_idx])
+    test_sids = set(all_sessions[split_idx:])
+
+    train_rids = set(
+        interactions[interactions["session_id"].isin(train_sids)]["requestor_id"]
+    )
+    test_only_rids = set(
+        interactions[interactions["session_id"].isin(test_sids)]["requestor_id"]
+    ) - train_rids
+
+    cold_start_rids = set()
+    test_only_list = sorted(test_only_rids)
+    for rid in test_only_list:
+        cold_start_rids.add(rid)
+        if len(cold_start_rids) >= int(len(requestors) * 0.12):
+            break
+
+    # ---- Obfuscate candidate categories ----
+    orig_cats = sorted(candidates["category"].unique().tolist())
+    shuffled_cats = [f"G_{i:02d}" for i in range(len(orig_cats))]
+    rng.shuffle(shuffled_cats)
+    cat_map = {orig: shuffled_cats[i] for i, orig in enumerate(orig_cats)}
+
+    candidates["category"] = candidates["category"].map(cat_map)
+    for col in ["pref_cat_1", "pref_cat_2", "pref_cat_3"]:
+        requestors[col] = requestors[col].map(cat_map)
+
+    # ---- Rename feature columns to opaque codes ----
+    cand_feat_map = {}
+    cand_orig = [c for c in candidates.columns if c.startswith("cf_")]
+    cand_labels = [f"a_{i:02d}" for i in range(len(cand_orig) + 5)]
+    rng.shuffle(cand_labels)
+    for i, col in enumerate(sorted(cand_orig)):
+        cand_feat_map[col] = cand_labels[i]
+    candidates = candidates.rename(columns=cand_feat_map)
+    candidates = candidates.rename(columns={"popularity": cand_labels[len(cand_orig)]})
+
+    req_feat_map = {}
+    req_orig = [c for c in requestors.columns if c.startswith("rw_")]
+    req_labels = [f"r_{i:02d}" for i in range(len(req_orig) + 5)]
+    rng.shuffle(req_labels)
+    for i, col in enumerate(sorted(req_orig)):
+        req_feat_map[col] = req_labels[i]
+    requestors = requestors.rename(columns=req_feat_map)
+    requestors = requestors.rename(columns={"cat_strength": req_labels[len(req_orig)]})
+
+    int_feat_map = {
+        "engagement": "s_01",
+        "dwell_time": "s_02",
+        "browse_depth": "s_03",
+        "revisit": "s_04",
+        "position": "s_05",
+    }
+    interactions = interactions.rename(columns=int_feat_map)
+
+    # ---- Rename pref_cat columns ----
+    requestors = requestors.rename(columns={
+        "pref_cat_1": "pg_1", "pref_cat_2": "pg_2", "pref_cat_3": "pg_3",
+    })
+
+    # ---- Add red-herring features ----
+    n_cand = len(candidates)
+    for j in range(len(cand_orig) + 1, len(cand_labels)):
+        candidates[cand_labels[j]] = np_rng.normal(0, 1, n_cand).round(3)
+
+    n_req = len(requestors)
+    for j in range(len(req_orig) + 1, len(req_labels)):
+        requestors[req_labels[j]] = np_rng.normal(0, 1, n_req).round(3)
+
+    n_int = len(interactions)
+    interactions["s_06"] = np_rng.uniform(0, 10, n_int).round(2)
+    interactions["s_07"] = np_rng.exponential(1.5, n_int).round(3)
+    interactions["s_08"] = np_rng.randint(0, 4, n_int)
+
+    # ---- Per-session z-score normalize engagement signals ----
+    for col in ["s_01", "s_02", "s_03"]:
+        group_mean = interactions.groupby("session_id")[col].transform("mean")
+        group_std = interactions.groupby("session_id")[col].transform("std")
+        group_std = group_std.replace(0, 1)
+        interactions[col] = ((interactions[col] - group_mean) / group_std).round(4)
+
+    # ---- Split interactions ----
+    train_int = interactions[interactions["session_id"].isin(train_sids)].copy()
+    test_int = interactions[interactions["session_id"].isin(test_sids)].copy()
+    train_int = train_int.sort_values("session_id").reset_index(drop=True)
+    test_int = test_int.sort_values("session_id").reset_index(drop=True)
+
+    train_sel = selections[selections["session_id"].isin(train_sids)].copy()
+    test_sel = selections[selections["session_id"].isin(test_sids)].copy()
+    train_sel = train_sel.sort_values("session_id").reset_index(drop=True)
+    test_sel = test_sel.sort_values("session_id").reset_index(drop=True)
+
+    # ---- Remove cold-start requestor profiles ----
+    requestors_pub = requestors[~requestors["requestor_id"].isin(cold_start_rids)].copy()
+    requestors_pub = requestors_pub.reset_index(drop=True)
+
+    # ---- Build sample submission (most-common selected candidate) ----
+    mode_cand = int(train_sel["selected_candidate_id"].mode().iloc[0])
+    sample_sub = test_sel[["session_id"]].copy()
+    sample_sub["selected_candidate_id"] = mode_cand
+
+    # ---- Write outputs ----
+    public.mkdir(parents=True, exist_ok=True)
+    private.mkdir(parents=True, exist_ok=True)
+
+    train_int.to_csv(public / "train_sessions.csv", index=False)
+    test_int.to_csv(public / "test_sessions.csv", index=False)
+    train_sel.to_csv(public / "train_labels.csv", index=False)
+    candidates.to_csv(public / "candidates.csv", index=False)
+    requestors_pub.to_csv(public / "requestors.csv", index=False)
+    sample_sub.to_csv(public / "sample_submission.csv", index=False)
+
+    test_sel.to_csv(private / "answers.csv", index=False)

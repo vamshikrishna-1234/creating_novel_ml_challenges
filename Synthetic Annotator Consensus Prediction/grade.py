@@ -1,0 +1,73 @@
+import pandas as pd
+import numpy as np
+
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    """
+    Score a submission against ground truth answers.
+
+    Args:
+        submission: The agent's predictions (loaded from submission.csv)
+        answers: Ground truth labels (loaded from private/answers.csv)
+
+    Returns:
+        A float score between 0.0 and 1.0. Higher is better.
+        Quadratic Weighted Kappa on ordinal reference levels.
+    """
+    try:
+        if "item_id" not in submission.columns or "reference_level" not in submission.columns:
+            return 0.0
+        if submission["item_id"].duplicated().any():
+            return 0.0
+        if answers["item_id"].duplicated().any():
+            return 0.0
+
+        ans_cols = answers[["item_id", "reference_level"]].copy()
+        sub_cols = submission[["item_id", "reference_level"]].copy()
+        merged = ans_cols.merge(
+            sub_cols, on="item_id", how="left", suffixes=("_true", "_pred")
+        )
+
+        if len(merged) == 0:
+            return 0.0
+
+        if merged["reference_level_pred"].isna().any():
+            return 0.0
+
+        if set(submission["item_id"]) != set(answers["item_id"]) or len(submission) != len(answers):
+            return 0.0
+
+        y_true = merged["reference_level_true"].astype(int).values
+        y_pred = merged["reference_level_pred"].astype(int).values
+
+        n_classes = 6
+        conf = np.zeros((n_classes, n_classes), dtype=float)
+        for t, p in zip(y_true, y_pred):
+            t_c = min(max(int(t), 0), n_classes - 1)
+            p_c = min(max(int(p), 0), n_classes - 1)
+            conf[t_c, p_c] += 1.0
+
+        w = np.zeros((n_classes, n_classes), dtype=float)
+        for i in range(n_classes):
+            for j in range(n_classes):
+                w[i, j] = ((i - j) ** 2) / ((n_classes - 1) ** 2)
+
+        row_sum = conf.sum(axis=1)
+        col_sum = conf.sum(axis=0)
+        n = conf.sum()
+        if n == 0:
+            return 0.0
+
+        expected = np.outer(row_sum, col_sum) / n
+
+        num = (w * conf).sum()
+        den = (w * expected).sum()
+
+        if den == 0:
+            return 1.0
+
+        qwk = 1.0 - num / den
+        return float(max(0.0, qwk))
+
+    except Exception:
+        return 0.0

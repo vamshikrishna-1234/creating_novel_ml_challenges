@@ -1,0 +1,157 @@
+LaTeX-to-Abstract Generation Challenge
+Editor View
+LaTeX-to-Abstract Generation Challenge
+Flag Problem
+Domain
+Sequence To Sequence
+Difficulty
+Medium
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+text
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(1)
+Rubrics
+Your Submissions
+LaTeX-to-Abstract Generation Challenge
+Overview
+This challenge asks you to generate a paper abstract from raw LaTeX manuscript content. For each row in test.csv, you receive the paper body/source in the latex field and must predict a concise, high-quality abstract that captures the core contribution, method, and findings.
+
+The novelty is in forcing summarization directly from noisy, technical source text rather than clean prose. In real research workflows, abstracts are critical because they determine first impressions, search visibility, and reviewer triage. A strong model for this task can support faster drafting, editing assistance, and consistent abstract quality at scale.
+
+The competition is also intentionally practical: strong results can come from prompt optimization, lightweight adaptation, and slight fine-tuning strategies, not only from training large models from scratch.
+
+Evaluation
+Submissions are scored using Corpus BLEU-4 with smoothing (returned on a 0-100 scale; higher is better).
+
+Scoring details used by grade.py:
+
+Text is lowercased, stripped, and whitespace-normalized.
+Tokenization uses regex: \w+|[^\w\s] (words and punctuation are separate tokens).
+Modified n-gram precisions are computed for n=1..4 with clipped counts.
+Add-one smoothing is applied per order: (matches_n + 1) / (possible_n + 1).
+Brevity penalty uses corpus lengths:
+BP = 1 if c > r, else exp(1 - r/c), where c is total candidate length and r is total reference length.
+Final score is 100 * BLEU.
+import math  
+from collections import Counter  
+  
+def evaluate(y_true_tokens, y_pred_tokens):  
+    # y_true_tokens: list[list[str]] or multi-reference equivalent  
+    # y_pred_tokens: list[list[str]]  
+    max_order = 4  
+    matches = [0] * max_order  
+    possible = [0] * max_order  
+    c = 0  # total candidate length  
+    r = 0  # total reference length  
+  
+    for refs, hyp in zip(y_true_tokens, y_pred_tokens):  
+        c += len(hyp)  
+        ref_lens = [len(ref) for ref in refs]  
+        r += min(ref_lens, key=lambda x: (abs(x - len(hyp)), x))  
+        for n in range(1, max_order + 1):  
+            if len(hyp) < n:  
+                continue  
+  
+            hyp_ngrams = Counter(tuple(hyp[i:i+n]) for i in range(len(hyp) - n + 1))  
+            possible[n - 1] += sum(hyp_ngrams.values())  
+  
+            max_ref_counts = Counter()  
+            for ref in refs:  
+                ref_counts = Counter(tuple(ref[i:i+n]) for i in range(len(ref) - n + 1))  
+                for ng, cnt in ref_counts.items():  
+                    max_ref_counts[ng] = max(max_ref_counts.get(ng, 0), cnt)  
+  
+            for ng, cnt in hyp_ngrams.items():  
+                matches[n - 1] += min(cnt, max_ref_counts.get(ng, 0))  
+  
+    if c == 0:  
+        return 0.0  
+  
+    precisions = [(matches[i] + 1) / (possible[i] + 1) for i in range(max_order)]  
+    bp = 1.0 if c > r else math.exp(1.0 - (r / c))  
+    bleu = bp * math.exp(sum(math.log(p) for p in precisions) / max_order)  
+    return 100.0 * bleu  
+Dataset
+Prepared public files are in dataset/public/, and private labels are in dataset/private/.
+
+train.csv (labeled training set)
+
+Column	Type	Description
+id	int64	Unique row identifier.
+latex	string	Preprocessed LaTeX manuscript text used as model input.
+abstract	string	Target abstract text.
+test.csv (evaluation inputs)
+
+Column	Type	Description
+id	int64	Unique row identifier used for submission matching.
+latex	string	Preprocessed LaTeX manuscript text used as model input.
+sample_submission.csv (format template / baseline)
+
+Column	Type	Description
+id	int64	Row identifier from test.csv.
+abstract	string	Predicted abstract text (baseline uses first 50 words of latex).
+Notes on preparation:
+
+Rows where latex contains the word Abstract are removed to reduce direct leakage.
+\title, \author, and \maketitle are removed.
+Bibliography/reference tails are truncated.
+Only the first 65% of manuscript tokens are retained to reduce conclusion leakage.
+Current prepared sizes: train.csv = 808 rows, test.csv = 809 rows.
+Submission
+Submit a CSV file with the following format:
+
+Column	Type	Description
+id	int64	Row identifier from test.csv
+abstract	string	Predicted abstract text
+Example:
+
+id,abstract  
+2000556,We present a fast timing capability for next-generation X-ray observations and analyze expected performance trade-offs.  
+2000505,This work compares low- and high-resolution rotation curves for late-type dwarf galaxies using H-alpha survey data.  
+2000312,We introduce a robust method for extracting scientific summaries directly from structured LaTeX manuscripts.  
+Requirements:
+
+Must contain exactly 809 rows (one per test sample in the current prepared set)
+Include header row
+Must contain exactly the columns id and abstract
+id values must match test.csv exactly (order does not matter)
+No duplicate id values
+ 
+
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Start New Solution
+Submission Credits
+6/6
+Learn more about submission credits
+15/8
+solver slots
+Closing soon
+A closing deadline has been set. 3 more distinct solvers needed to activate the $650 prize pool. Submit before the deadline!
+
+Closing in 15h 15m
+
+Submit your solution before the deadline. Payouts are processed after the challenge closes.
+
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+49
+Top Score
+10.264
+Created
+Mar 4, 2026
+
+Agent Evaluations

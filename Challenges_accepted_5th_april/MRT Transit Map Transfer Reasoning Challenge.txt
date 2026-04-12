@@ -1,0 +1,285 @@
+MRT Transit Map Transfer Reasoning Challenge
+Flag Problem
+Domain
+Fine-Tuning
+Difficulty
+Hard
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+image
+multimodal
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(0)
+Rubrics
+Your Submissions
+1. Overview
+This is a fine-tuning multimodal model challenge focused on diagram-to-graph reconstruction from purely visual input on synthetic MRT schematics. Each example consists of a programmatically generated transit map image and a source–target query. This task requires recovering an implicit graph representation from a stylized diagram and producing outputs that are structurally verifiable.
+
+A key distinction is the use of fully synthetic, programmatically controlled MRT schematics. This removes reliance on real-world priors and eliminates shortcuts tied to memorization or geographic familiarity. Instead, the dataset enables controlled variation in topology, interchange complexity, and visual layout, making the task a pure test of learned visual-structural reasoning rather than world knowledge.
+
+The benchmark is intentionally scoped to the min_line_changes objective, isolating transfer reasoning as a core primitive. Crucially, evaluation goes beyond answer accuracy by requiring full route validity. Submitted routes are checked against the exact underlying network rather than partial or heuristic correctness.
+
+2. Evaluation
+Performance is measured using a weighted combination of transfer-count accuracy and route validity.
+
+The final score is defined as:
+
+F
+i
+n
+a
+l
+ 
+S
+c
+o
+r
+e
+=
+0.70
+×
+T
+r
+a
+n
+s
+f
+e
+r
+ 
+S
+c
+o
+r
+e
++
+0.30
+×
+V
+a
+l
+i
+d
+ 
+R
+o
+u
+t
+e
+ 
+S
+c
+o
+r
+e
+Final Score=0.70×Transfer Score+0.30×Valid Route Score
+The Transfer Score measures exact-match accuracy on the predicted number of line changes:
+
+T
+r
+a
+n
+s
+f
+e
+r
+ 
+S
+c
+o
+r
+e
+=
+1
+N
+∑
+i
+=
+1
+N
+1
+[
+t
+^
+i
+=
+t
+i
+]
+Transfer Score= 
+N
+1
+​
+  
+i=1
+∑
+N
+​
+ 1[ 
+t
+^
+  
+i
+​
+ =t 
+i
+​
+ ]
+The Valid Route Score measures how often the submitted route is completely correct:
+
+Valid Route Score
+=
+1
+N
+∑
+i
+=
+1
+N
+1
+[
+r
+^
+i
+ is valid
+]
+Valid Route Score= 
+N
+1
+​
+  
+i=1
+∑
+N
+​
+ 1[ 
+r
+^
+  
+i
+​
+  is valid]
+A route is considered valid only if it starts at the correct source station, ends at the correct target station, contains only valid stations from the network, and ensures that every consecutive pair of stops corresponds to a valid connection. If any of these conditions fail, the route receives zero credit for that example.
+
+In addition, the route must achieve the minimum number of line transfers, routes that are structurally valid but use more transfers than the optimal solution receive zero credit.
+
+3. Data Structure
+The dataset is organized into training and testing splits, each paired with corresponding image directories.
+
+public/
+├── train.csv
+├── test.csv
+├── train_images/
+├── test_images/
+└── sample_submission.csv
+MRT Diagram Images
+Each example includes a synthetic MRT diagram rendered as a PNG image.
+
+Format: RGB PNG, fixed square resolution (~1k × 1k)
+Style: schematic, non-geographic, colored lines, circular stations, labeled names, interchanges highlighted
+Structure: lines form continuous paths with shared stations as interchanges
+Generation: built from a synthetic transit graph, laid out in 2D, then rendered with a consistent template
+Image Directories
+train_images/: contains all training MRT diagrams referenced in train.csv
+test_images/: contains all test MRT diagrams referenced in test.csv
+Each file is named using its example id (e.g. TR0001.png, TS0001.png)
+Images are unique per split and correspond one-to-one with rows in the CSV files
+Distribution
+The dataset contains 4,500 total samples, split into:
+
+Training set: 1,000 examples
+Test set: 3,500 examples
+The smaller training set is intentional, as the data is fully synthetic and designed to be learnable with limited supervision. The larger test set provides broader coverage of network variations, enabling more reliable evaluation across diverse topologies.
+
+4. Features
+Each row corresponds to a single MRT map image and a routing query.
+
+Training Columns
+id (string): unique example identifier such as TR0001.
+image_path (string): relative path to a PNG MRT diagram image such as train_images/TR0001.png.
+task_aux (string): routing query specifying the source and target stations (e.g., source=Aster;target=Beacon).
+transfer_count (int): ground-truth minimum number of line transfers required to travel from source to target.
+difficulty (string): difficulty level of the example, one of easy, medium, or hard, reflecting topology complexity and interchange structure.
+station_count (int): total number of stations in the underlying network.
+line_count (int): number of transit lines present in the diagram.
+interchange_count (int): number of interchange stations connecting multiple lines.
+Test Columns
+id (string): unique example identifier such as TS0001.
+image_path (string): relative path to a PNG MRT diagram image such as test_images/TS0001.png.
+task_aux (string): routing query specifying the source and target stations (same format as training).
+The test set does not include transfer_count, difficulty, or any structural metadata.
+
+5. Submission Format
+Submissions must be a CSV file with exactly three columns:
+
+id,transfer_count,route
+id must match each row in test.csv
+transfer_count must be a non-negative integer
+route must be a valid ordered sequence of stops from source to target
+Because the route itself contains commas, it must be enclosed in quotes so that it remains a single CSV field.
+
+The required format is:
+
+id,transfer_count,route
+TS0001,0,"Aster,Beacon"
+TS0002,1,"Harbor,Central,Elm,Beacon"
+TS0003,2,"Orchid,Park,River,Union"
+The route must begin at the queried source station and end at the queried target station. Every listed stop must exist in the hidden network, and each consecutive pair of stops must correspond to a valid connection. Route validity is strictly enforced; any malformed, incomplete, or inconsistent route receives zero credit for that component of the score.
+
+6. Method Requirements
+This benchmark is designed to encourage and evaluate progress in machine learning–based multimodal reasoning, particularly in visual structure inference and route prediction from diagrammatic input.
+
+All submitted solutions must incorporate a learning-based component, such as a trained vision-language model or other data-driven approach. The objective is to assess how well models can interpret MRT schematics and infer latent graph structure directly from visual input.
+
+In cases where a model is unable to produce a valid prediction, it must fall back to the default output:
+
+transfer_count = -1  
+route = "Forest,Delta"
+No alternative fallback values are permitted.
+
+Purely rule-based, symbolic, or hardcoded systems—including those based on explicit diagram parsing, OCR-driven pipelines, or fully deterministic graph reconstruction followed by algorithmic solvers are not permitted as standalone solutions, even if they achieve high scores.
+
+Hybrid approaches that combine machine learning with supporting heuristics or structured reasoning are allowed, but a meaningful learning-based component must remain central to the system. Submissions that rely primarily on non-learned pipelines or external algorithmic reconstruction do not align with the goal of evaluating learned visual-structural reasoning and may be disqualified.
+
+Author’s Initial Rubric
+5 criteria
+0 items
+·
+0 contributors
+·
+Draft
+Infer latent graph structure from visual MRT schematics
+
+The model must reconstruct an implicit graph from the diagram by identifying stations, line memberships, and interchanges purely from visual cues (e.g., colors, intersections, continuity). It should not rely on memorized patterns or textual shortcuts, but instead derive adjacency and connectivity needed for routing.
+
+MODELING
+REQUIRED
+Correctly minimize line transfers using inferred line structure
+
+The model must explicitly reason about line continuity and interchange points to compute the minimum number of transfers between source and target. This requires distinguishing between staying on the same line versus switching lines at valid interchange stations, rather than approximating via shortest path in number of stops.
+
+MODELING
+REQUIRED
+Produce fully valid and graph-consistent routes
+
+Predicted routes must strictly follow validity constraints which start at the source, end at the target, include only existing stations, and ensure every consecutive pair represents a valid edge in the inferred network. Any hallucinated stations, skipped links, or disconnected segments must be avoided.
+
+CODE QUALITY
+REQUIRED
+Consider lightweight decomposition between structure inference and routing
+
+It may help to separate the problem into identifying key structural elements of the diagram and then reasoning over them to produce a route. Even a loose form of intermediate structuring can improve consistency compared to treating the task as a single-step prediction.
+
+MODELING
+RECOMMENDED
+Remain robust to visual ambiguity and overlapping elements
+
+The model should handle cases where station labels, line colors, and graphical elements overlap or occlude one another.
+
+DATA HANDLING
+RECOMMENDED

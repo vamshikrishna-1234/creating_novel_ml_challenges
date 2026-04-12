@@ -1,0 +1,5 @@
+ACCEPTED — Latent Selection Function Inference From Obfuscated Behavioral Traces
+
+Status: Challenge accepted on the platform.
+
+Previously known as "Session Purchase Prediction From Behavioral Interaction Signals." Session-level selection prediction from obfuscated behavioral signals (engagement intensity, exploration depth, event type, sequential position). Agent scores: 0.68–0.80.

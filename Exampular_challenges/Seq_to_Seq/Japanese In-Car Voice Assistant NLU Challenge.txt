@@ -1,0 +1,236 @@
+Japanese In-Car Voice Assistant NLU Challenge
+
+data:
+Overview
+
+This dataset is designed for a Natural Language Understanding (NLU) Challenge focusing on in-car voice assistants for Japanese users. The data was synthetically generated using multiple Large Language Models (ChatGPT, DeepSeek, Gemini) to provide diverse phrasing, vocabulary, and sentence structures for robust training.
+
+Your objective is to build a robust model capable of performing Joint Intent Classification and Slot Filling. Given a Japanese utterance (what a user says to the car), your model must correctly identify the underlying command (the intent) and extract any relevant entities (the slots/arguments).
+
+File Structure
+
+The dataset is provided as a single consolidated file:
+
+
+
+
+
+data.csv: The mas
+.py file:
+"""
+Dataset Creation Script â€” Japanese In-Car Voice Assistant NLU Dataset
+=====================================================================
+Author: Ahmed (dataset creator)
+Created: 2026-03-01
+
+This script generates data.csv from the original JSON source files.
+The training data was synthetically generated using multiple LLMs
+(ChatGPT, DeepSeek, Gemini) to provide diverse phrasing and vocabulary
+for Japanese in-car voice commands. The test data was independently
+curated and is NOT LLM-generated.
+
+Source Files:
+  Training (LLM-generated):
+    - relabel_out/jp/new_intent_slot_chatgpt_jp_2.json  (ChatGPT batch 2)
+    - relabel_out/jp/new_intent_slot_deepseek_jp_2.json (DeepSeek batch 2)
+    - relabel_out/jp/new_intent_slot_gemini_jp_2.json   (Gemini batch 2)
+    - relabel_out/jp/new_intent_slot_chatgpt_jp_3.json  (ChatGPT batch 3)
+    - relabel_out/jp/new_intent_slot_gemini_jp_3.json   (Gemini batch 3)
+
+  Test (human-curated):
+    - test_data_25Jul_jp2.json
+
+Target Format:
+  Each row in data.csv has: id, text, target, split
+  - 'target' encodes intent + slots as: command|slot1|slot2|...
+  - 'split' is either 'train' or 'test'
+
+Known Commands (intents):
+  open_window_full, close_window_full, open_window_half, close_window_half,
+  ac_turn_on, ac_turn_off, ac_set_temperature, play_music, play_playlist,
+  search_song, search_address, search_weather, search_news, send_sms_message,
+  set_alarm, add_todo, check_todo, free_text_search, web_search,
+  search_manual, search_by_category, switch_tv_channel_by_name,
+  turn_on_radio, launch_music_app, launch_calendar_app, set_up_meeting,
+  clear_route, search_stock_price, ... (and others)
+"""
+
+import json
+import pandas as pd
+from pathlib import Path
+
+# â”€â”€ Source file paths â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+TRAIN_FILES = [
+    Path("relabel_out/jp/new_intent_slot_chatgpt_jp_2.json"),
+    Path("relabel_out/jp/new_intent_slot_deepseek_jp_2.json"),
+    Path("relabel_out/jp/new_intent_slot_gemini_jp_2.json"),
+    Path("relabel_out/jp/new_intent_slot_chatgpt_jp_3.json"),
+    Path("relabel_out/jp/new_intent_slot_gemini_jp_3.json"),
+]
+TEST_FILE = Path("test_data_25Jul_jp2.json")
+OUT_DIR = Path("ShipD_Competition/JP_VA")
+
+
+def format_target(command: str, args: list) -> str:
+    """Encode command + slot values as a single pipe-delimited string."""
+    parts = [str(command)] + [str(a) for a in args]
+    return "|".join(parts) if args else command
+
+
+def load_train_data() -> list[dict]:
+    """Load and flatten all training JSON files into records."""
+    records = []
+    row_id = 0
+    for path in TRAIN_FILES:
+        if not path.exists():
+            print(f"  WARNING: {path} not found, skipping.")
+            continue
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        print(f"  Loaded {len(data)} rows from {path.name}")
+        for item in data:
+            records.append({
+                "id": row_id,
+                "text": item.get("text", ""),
+                "target": format_target(item.get("command", ""), item.get("args", [])),
+                "split": "train",
+            })
+            row_id += 1
+    return records
+
+
+def load_test_data(start_id: int) -> list[dict]:
+    """Load the test JSON file into records."""
+    if not TEST_FILE.exists():
+        raise FileNotFoundError(f"Test file not found: {TEST_FILE}")
+    with open(TEST_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    print(f"  Loaded {len(data)} rows from {TEST_FILE.name}")
+    records = []
+    for item in data:
+        records.append({
+            "id": item.get("sample_id", start_id),
+            "text": item.get("text", ""),
+            "target": format_target(item.get("command", ""), item.get("args", [])),
+            "split": "test",
+        })
+        start_id += 1
+    return records
+
+
+def main():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+
+    print("Loading training data...")
+    train_records = load_train_data()
+
+    print("Loading test data...")
+    test_records = load_test_data(start_id=len(train_records))
+
+    all_records = train_records + test_records
+    df = pd.DataFrame(all_records)
+
+    out_path = OUT_DIR / "data.csv"
+    df.to_csv(out_path, index=False, encoding="utf-8")
+
+    n_train = df[df["split"] == "train"].shape[0]
+    n_test = df[df["split"] == "test"].shape[0]
+    n_cmds = df["target"].apply(lambda t: t.split("|")[0]).nunique()
+
+    print(f"\nDataset written to {out_path}")
+    print(f"  Train: {n_train} rows")
+    print(f"  Test:  {n_test} rows")
+    print(f"  Unique commands: {n_cmds}")
+
+
+if __name__ == "__main__":
+    main()
+Explain
+challenge:
+Editor View
+This challenge is closed
+
+No further submissions, edits, or withdrawals are possible. 
+How payouts are processed
+
+Japanese In-Car Voice Assistant NLU Challenge
+Flag Problem
+Domain
+Sequence To Sequence
+Difficulty
+Hard
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+text
+segmentation
+generative
+Based on dataset:
+Japanese In-Car Voice Assistant NLU Dataset
+Download Data
+Description
+Leaderboard
+(8)
+Rubrics
+1
+Your Submissions
+Overview Modern voice assistants in vehicles must accurately understand user commands, even when phrased in complex ways. Your task in this challenge is to build a Natural Language Understanding (NLU) model for a Japanese in-car voice assistant capable of performing Joint Intent Classification and Slot Filling.
+
+Given a Japanese textual command (the utterance), your model must correctly classify the intended action (the command) and extract any necessary entities (the args).
+
+Dataset The data for this competition consists of synthetic Japanese utterances generated by Large Language Models (ChatGPT, DeepSeek, Gemini) to mimic diverse user phrasing for in-car commands.
+
+You are provided with the following files:
+
+train.csv: The training set. This file contains the id, the text (the Japanese utterance), and the ground truth target string for you to train your models.
+test.csv: The test set. This file contains the id and the text. You must predict the target string for each ID in this file.
+sample_submission.csv: A sample submission file demonstrating the correct format.
+Data Fields:
+
+id (Integer): A unique identifier for the utterance.
+text (String): The literal Japanese phrase spoken by the user.
+target (String): The ground truth label representing the command and its args, separated by the | character (found in train.csv and required in your submission).
+Evaluation The evaluation metric for this competition is Strict Task Accuracy (Exact String Match). A prediction is only considered correct if the model correctly predicts both the command and all associated slot values in the exact format provided in the targets. The final score is the percentage of perfectly predicted target strings across the test set (from 0.0 to 1.0).
+
+Submission Your submission file must be a CSV containing exactly two columns: id and target. The target column must be formatted as a single composite string joined by the pipe | character: {command}|{arg1}|{arg...}. For example, the text utterance "運転席の窓を全開にして" maps to the target open_window_full|運転席. If an intent has no arguments, the target is simply the command itself.
+
+Example Submission Format:
+
+id,target
+1,open_window_full|運転席
+2,play_music
+3,set_temperature|22
+ 
+
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+50
+Top Score
+0.848
+Created
+Mar 1, 2026
+
+Agent Evaluations

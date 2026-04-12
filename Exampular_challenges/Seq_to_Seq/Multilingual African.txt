@@ -1,0 +1,125 @@
+Multilingual African Text Reconstruction: Decipher & Complete
+Overview
+Communication in diverse African languages—such as Amharic, Hausa, Igbo, Nigerian Pidgin, and Yorùbá—often involves complex code-switching, unique regional slang, and tonal nuance.
+
+This Sequence to Sequence challenge introduces a dual-layered AI task: Decryption and Reconstruction.
+
+To prevent data leakage and simulate noisy, corrupted data streams, the input data has been heavily obfuscated. The original texts were split exactly at the 50% word mark. The first half partial_text) was then encrypted using a deterministic character substitution cipher. The second half missing_text) was left in plaintext.
+
+Your agent's task is twofold:
+
+Implicitly learn the substitution cipher to "understand" the encrypted first half of the text.
+
+Use that decrypted context, along with the provided sentiment label, to generate and reconstruct the plaintext missing second half generated_text).
+
+Evaluation
+Because generative text can be phrased in many valid ways, you are not graded on exact string matching. Instead, submissions are evaluated using Mean TF-IDF Character N-Gram Cosine Similarity.
+
+The scoring pipeline operates as follows:
+
+A Scikit-Learn TfidfVectorizer is instantiated with the following parameters: analyzer='char_wb', ngram_range=(2, 4), and min_df=1.
+
+Fitting: The vectorizer is fit exclusively on the ground truth missing_text corresponding to the graded subset.
+
+Transformation: Both your generated_text and the ground truth missing_text are transformed into sparse matrices using this fitted vectorizer.
+
+Scoring: The Cosine Similarity is calculated for each pair. The final score is the mean (average) of all cosine similarity scores across the evaluated set.
+
+Dataset
+The dataset originates from public micro-blogging platforms across 14 African languages. To ensure competition integrity, the data underwent a rigorous obfuscation pipeline:
+
+Cleaning: URLs and user mentions were stripped, and text was lowercased.
+
+Splitting: Texts were split at the 50% word mark.
+
+Encryption: The partial_text (first half) was encrypted using a fixed, randomized character substitution cipher. The missing_text (target) remains in plaintext.
+
+Anonymization: Original identifiers were replaced with secure SHA-256 hashes.
+
+Features
+| Column | Type | Description |
+
+|--------|------|-------------|
+
+| ID | string | Unique SHA-256 identifier for the text |
+
+| partial_text | string | The encrypted first 50% of the text |
+
+| label | string | The overall sentiment of the original text positive, negative, neutral) |
+
+| missing_text | string | (Train only) The plaintext target second half of the text |
+
+Files
+train.csv: 77,338 rows. Contains ID, partial_text, label, and missing_text.
+
+test.csv: 30,211 rows. Contains ID, partial_text, and label.
+
+sample_submission.csv: A template demonstrating the required format.
+
+Submission
+Your submission must be a CSV file containing exactly 30,211 rows plus a header.
+
+Required Columns:
+
+The CSV must contain exactly two columns with the following explicit names and types:
+
+ID (string): The exact SHA-256 hash from the test set.
+
+generated_text (string): Your agent's plaintext reconstruction of the missing second half.
+
+Example Submission Format:
+
+| ID | generated_text |
+
+|---|---|
+
+| 8d969eef6ecad3c2 | i am very happy today |
+
+| 900150983cd24fb0 | this is completely bad |
+
+| 4b227777d4dd1fc6 | the weather is nice |
+
+
+Author’s Initial Rubric
+6 criteria
+0 items
+·
+0 contributors
+·
+Draft
+Optimization for Semantic Similarity
+
+The grading script uses Cosine Similarity of embeddings, not exact string matching (BLEU/ROUGE). Agents must train their models to capture the underlying sentiment and meaning rather than overfitting to exact word sequences.
+
+TRAINING
+REQUIRED
+Sentiment-Conditioned Prompting
+
+The agent is provided the target sentiment label as an input feature alongside the partial_tweet. Good behavior involves effectively conditioning the generative model on this label so the reconstructed text naturally aligns with the target emotion.
+
+FEATURE ENGINEERING
+REQUIRED
+Multilingual Generative Tokenization
+
+The dataset spans 14 African languages with varying scripts (e.g., Ge'ez for Amharic). Standard tokenizers will scramble these. Agents must utilize a generative model (like mT5 or a multilingual LLM) with a vocabulary capable of decoding and generating non-Latin scripts accurately.
+
+MODELING
+REQUIRED
+Code-Switching Continuity
+
+African Twitter data frequently code-switches mid-sentence (e.g., mixing English with Yoruba). Agents must process training data to preserve these transitions, ensuring the model doesn't abruptly switch to pure English when generating the missing second half
+
+DATA HANDLING
+RECOMMENDED
+Hallucination Mitigation
+
+Generative models are prone to hallucinating long, irrelevant continuations, especially in low-resource languages. Agents should implement length penalties or specific decoding strategies (like contrastive search) to keep the generated text concise and contextually bound to a standard tweet length.
+
+AGENT BEHAVIOR
+RECOMMENDED
+Robustness to Short Inputs
+
+Because the preparation script splits tweets at the 50% mark, some partial_tweet inputs might be extremely short (1-2 words). Agents must build preprocessing pipelines that gracefully handle sparse context without causing catastrophic generation failures.
+
+DATA HANDLING
+UNIVERSAL

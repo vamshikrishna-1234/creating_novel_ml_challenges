@@ -1,0 +1,11 @@
+FAILED — Synthetic Multi-Stakeholder Preference Matching
+
+Why this challenge failed:
+
+1. Problem Originality: The platform's originality checker flagged this as too similar to an existing problem (Session Purchase Prediction / Latent Selection Function Inference). Both are session-level selection prediction with obfuscated features, candidate pools, and cold-start users. The task architecture is essentially the same despite different entity names (requestors/candidates vs users/items).
+
+2. Title Quality: "Multi-Stakeholder" was misleading — the problem involves exactly two parties (requestor and candidate), not multiple stakeholders. Suggested alternatives: "Bilateral Profile Selection Prediction" or "Candidate Selection Prediction in Engagement Sessions."
+
+3. Rubric Quality: Rubrics were reported as empty during validation — likely a form pasting/upload issue, though rubrics exist in CHALLENGE_FORM_FILL.md section 8.
+
+Lesson: Do not reuse the "proven recipe" from an accepted challenge (Session Purchase) — the platform checks against its own catalog and will reject structurally similar problems. Future challenges must have fundamentally different task architecture, not just different domain framing.

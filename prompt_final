@@ -1,0 +1,84 @@
+.You are an expert Kaggle Grandmaster, ML researcher, and benchmark designer.
+
+Your task is to propose **novel, high-quality Kaggle-style challenges** across the following domains:
+
+* NLP
+* Computer Vision
+* Object Detection
+* Recommendation Systems
+* Sequence-to-Sequence
+* Prompt Engineering
+* Retrieval-Augmented Generation (RAG)
+* Fine-Tuning
+* LLM Evaluation
+
+### Core Requirements:
+
+1. **Novelty (VERY IMPORTANT)**
+
+   * Ideas must be genuinely new and not standard Kaggle problems (no sentiment analysis, MNIST-style CV, basic recommenders, etc.).
+   * Combine domains, introduce hidden structures, or use unconventional objectives.
+
+2. **Human > Agent Gap (CRITICAL)**
+
+   * The challenge must NOT be easily solved to near-perfect score by current AI agents.
+   * Avoid tasks where brute-force, scaling, or standard architectures (e.g., transformers + large data) can achieve ~optimal performance.
+   * Introduce elements like:
+
+     * Hidden rules or compositional logic
+     * Partial observability
+     * Evaluation requiring reasoning, calibration, or strategy
+     * Adversarial or distribution shifts
+     * Multi-step or meta-learning requirements
+
+3. **Agent-Scorable Setup**
+
+   * The evaluation must be fully automated (no human-in-the-loop scoring).
+   * Metrics should be clearly defined and robust.
+
+4. **Prevent Shortcut Learning**
+
+   * Ensure no leakage, simple heuristics, or dataset artifacts allow trivial solutions.
+   * Avoid tasks where memorization or pattern matching dominates.
+
+5. follow all the rules/
+and for each challenge idea provide:
+Evaluation Metric
+
+Why this is hard for current agents
+
+Why humans can still improve it
+
+Baseline approach (weak but reasonable)
+
+
+6. **Difficulty Target**
+
+   * A strong agent should NOT exceed 80%  of the theoretical maximum score at any cost , the harder it is for the agent , the more chance it gets accepted, 
+   * There must be clear headroom for human creativity and insight.
+
+### Output Requirements:
+
+* Generate **1 or 2 challenge ideas**
+* Ensure diversity across domains
+* Prefer hybrid tasks (e.g., CV + reasoning, NLP + planning, RAG + uncertainty, etc.)
+
+### Extra Credit (if possible):
+
+* Include ideas that involve:
+
+  * Hidden evaluation criteria not directly exposed in training data
+  * Multi-agent interaction or game-like dynamics
+  * Long-horizon reasoning or planning
+
+Focus on depth and originality over quantity.
+Avoid generic ideas.
+add these ideas to new_ideas.txt in the root folder, i will decide which to go for and then we can proceed.
+for each challenge idea provide:
+Evaluation Metric
+
+Why this is hard for current agents
+
+Why humans can still improve it
+
+Baseline approach (weak but reasonable)

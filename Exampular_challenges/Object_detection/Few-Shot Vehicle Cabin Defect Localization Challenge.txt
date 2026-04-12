@@ -1,0 +1,189 @@
+Few-Shot Vehicle Cabin Defect Localization Challenge
+Overview
+In modern vehicle manufacturing and inspection pipelines, identifying interior damage quickly and accurately is important for quality control. Manual inspection can be time-consuming and inconsistent, motivating the development of automated computer vision systems that can detect damage directly from images.
+
+In this challenge, participants must build a model that detects damage regions on vehicle seats from interior images captured by a fixed camera. Each image may either contain a damaged region or no damage at all. When damage exists, the goal is to predict the location of the defect using a bounding box. The dataset contains interior cabin images with annotations describing the position of seat damage.
+
+The challenge is intentionally designed as a few-shot learning problem, where only a small number of labeled examples are available for training. Models must generalize well to unseen images in the test set and correctly distinguish between damaged and clean seats.
+
+Evaluation
+Submissions are evaluated using a modified F1-based metric derived from Intersection over Union (IoU).
+
+For each test image, the predicted bounding box is compared with the ground truth bounding box.
+
+The Intersection over Union (IoU) is defined as:
+
+
+IoU = Area of Overlap / Area of Union
+
+A prediction is considered a True Positive (TP) if the IoU between the predicted bounding box and the ground truth bounding box satisfies:
+
+
+IoU ≥ 0.5
+
+The evaluation counts:
+
+True Positive (TP): A damage is predicted and the predicted bounding box has IoU ≥ 0.5 with the ground truth.
+
+False Positive (FP): A damage is predicted but either no damage exists in the image or the IoU with the ground truth is < 0.5.
+
+False Negative (FN): A damage exists but the model fails to predict a valid bounding box.
+
+Using these counts:
+
+
+Precision = TP / (TP + FP)
+
+Recall = TP / (TP + FN)
+
+The F1 score is computed as:
+
+
+F1 = 2 × (Precision × Recall) / (Precision + Recall)
+
+The final leaderboard score is:
+
+
+Score = 1 + F1
+
+This shifts the scoring range from [0, 1] to [1, 2] while preserving the relative ranking of submissions.
+
+Dataset
+The dataset contains interior vehicle images and bounding box annotations for damaged regions.
+
+The prepared dataset structure is:
+
+
+public/
+
+├── train_images/
+
+│   ├── train_0.png
+
+│   ├── train_1.png
+
+│   └── ...
+
+│
+
+├── test_images/
+
+│   ├── test_0.png
+
+│   ├── test_1.png
+
+│   └── ...
+
+│
+
+├── train.csv
+
+├── test.csv
+
+└── sample_submission.csv
+
+Train Data
+train_images/ contains images used for training.
+
+train.csv provides labels for these images.
+
+
+| Column   | Type   | Description |
+
+|----------|--------|-------------|
+
+| image_id | string | Image identifier corresponding to a file in train_images/ |
+
+| class    | string | Indicates whether the image contains damage or no_damage |
+
+| x_center | float  | Normalized x-coordinate of bounding box center |
+
+| y_center | float  | Normalized y-coordinate of bounding box center |
+
+| width    | float  | Normalized bounding box width |
+
+| height   | float  | Normalized bounding box height |
+
+For images labeled no_damage, the bounding box fields are empty.
+
+Test Data
+test_images/ contains images for which predictions must be generated.
+
+test.csv contains only image identifiers.
+
+
+| Column   | Type   | Description |
+
+|----------|--------|-------------|
+
+| image_id | string | Identifier of the test image |
+
+Ground truth annotations for the test set are hidden and used only for evaluation.
+
+Submission
+Submit a CSV file with the following format.
+
+
+| Column     | Type  | Description |
+
+|------------|-------|-------------|
+
+| image_id   | string | Identifier of the test image |
+
+| x_center   | float | Predicted bounding box center x-coordinate (normalized 0–1) |
+
+| y_center   | float | Predicted bounding box center y-coordinate (normalized 0–1) |
+
+| width      | float | Predicted bounding box width (normalized 0–1) |
+
+| height     | float | Predicted bounding box height (normalized 0–1) |
+
+| confidence | float | Confidence score for the prediction |
+
+Example submission:
+
+
+image_id,x_center,y_center,width,height,confidence
+
+test_0,0.58,0.60,0.03,0.04,0.91
+
+test_1,,,,,
+
+test_2,0.42,0.51,0.03,0.05,0.87
+
+Requirements
+Must contain exactly one row per test image
+
+Must include a header row
+
+Bounding box coordinates must be normalized between 0 and 1
+
+If no damage is predicted for an image, leave the bounding box fields empty
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+239
+Top Score
+1.520
+Created
+Mar 15, 2026
+
+Agent Evaluations

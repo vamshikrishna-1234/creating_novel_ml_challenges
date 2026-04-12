@@ -1,0 +1,131 @@
+Old Norse Saga Language Model Training
+Flag Problem
+Domain
+NLP
+Difficulty
+Hard
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+text
+generative
+small-data
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(1)
+Rubrics
+Your Submissions
+Data-Efficient Morphological Language Modeling
+Overview
+Old Norse is one of the most morphologically complex Germanic languages ever recorded. A single noun like "konungur" (king) inflects into over a dozen surface forms encoding grammatical case, number, and definiteness. Verbs conjugate across person, number, tense, and mood. This inflectional richness creates an enormous vocabulary from a small set of roots, making Old Norse a stress test for language models that must learn word relationships from limited data.
+
+This challenge provides 35 Icelandic sagas totaling approximately 800,000 tokens and asks you to train a language model from random initialization within 30 minutes on a single GPU. Your model must learn enough Old Norse vocabulary, morphology, and narrative convention to predict masked words in sentences from 7 held-out sagas it has never seen. Pre-trained English models cannot handle Old Norse -- the characters, case system, and vocabulary have no overlap with modern training data. The only path is training from scratch on the saga corpus itself.
+
+Dataset
+Training corpus corpus.txt): Plain text concatenation of 35 Old Norse sagas in modernized Icelandic orthography. Approximately 4 million characters (~800,000 tokens). Contains Old Norse special characters including thorn (þ), eth (ð), and accented vowels (á, é, í, ó, ú, ý, æ, ö). Chapter divisions appear as numbered "kafli" headings. This is the only permitted training data.
+
+Test data test.jsonl): 1,500 multiple-choice cloze items extracted from 7 held-out sagas not included in the training corpus. Each line is a JSON object with these fields:
+
+id (string) -- Unique item identifier in NRS-XXXXXXXXXXXX format
+
+masked_sentence (string) -- A sentence with one content word replaced by the token [BLANK]
+
+option_a (string) -- First candidate word
+
+option_b (string) -- Second candidate word
+
+option_c (string) -- Third candidate word
+
+option_d (string) -- Fourth candidate word
+
+Exactly one option is the original word from the saga text. The three distractors are drawn from the same saga with matching grammatical suffixes, similar corpus frequency, and topical relevance.
+
+Sample submission sample_submission.csv): Correctly formatted submission with random option labels. Use as a format reference.
+
+Evaluation
+Submissions are scored by accuracy: the fraction of test items where the predicted option matches the correct answer.
+
+
+score = correct_predictions / 1500
+
+Score range: [0.0, 1.0] (higher is better). Random baseline picking uniformly among A, B, C, D scores approximately 0.25.
+
+Submission
+CSV file with two columns:
+
+id (string) -- Must match the IDs in test.jsonl exactly
+
+correct_option (string) -- Predicted answer: one of A, B, C, or D
+
+Example rows:
+
+
+id,correct_option
+
+NRS-00042DBC3F,B
+
+NRS-0031CAB4F3,A
+
+NRS-009D954333,D
+
+Requirements
+Exactly 1,500 rows matching the test set IDs
+
+Both id and correct_option columns present
+
+Predictions compared case-insensitively after whitespace stripping
+
+Empty or NaN predictions count as incorrect
+
+Author’s Initial Rubric
+7 criteria
+0 items
+·
+0 contributors
+·
+Draft
+Train a custom subword tokenizer directly on the Old Norse corpus that handles special characters like thorn, eth, accented vowels, and other Icelandic orthography rather than reusing a modern English tokenizer
+
+Modern tokenizers have never seen Old Norse inflectional patterns or characters like thorn and eth. They fragment common saga words into 4-5 meaningless subword pieces, wasting sequence length on a corpus that already has only 1 million tokens. A corpus-trained tokenizer learns merges for frequent Old Norse morphemes, cutting sequence lengths and giving the model usable semantic units to learn from.
+
+DATA HANDLING
+RECOMMENDED
+Select a model size under 50M parameters that can complete multiple training epochs over the 1M token corpus within the 30-minute GPU budget
+
+With only 1 million tokens of training data, a large model will memorize the corpus in a single pass without learning generalizable language patterns. The model needs to be small enough that multiple epochs are feasible within the time budget, since repeated passes over limited data are how the model consolidates vocabulary and grammatical knowledge. The reference baseline uses 8M parameters and trains for 3 epochs.
+
+MODELING
+RECOMMENDED
+Parse each test item's four options from the JSONL fields and output predictions as option labels A through D in the submission CSV, not the word text itself
+
+The grading function compares option labels not words. Outputting the predicted Old Norse word instead of its letter label produces zero matches across all 1500 test items, resulting in a score of 0.
+
+CODE QUALITY
+RECOMMENDED
+Train for multiple epochs over the corpus since 1M tokens is too small for a single pass to learn the language, targeting 3-5 complete passes through the data
+
+Standard LLM training sees each token once across billions of tokens. With only 1 million tokens, a single epoch gives the model roughly 4000 gradient updates -- not enough to learn Old Norse morphology and word co-occurrence patterns. Multiple epochs let the model revisit rare but important inflectional forms that appear fewer than 10 times in the corpus. The reference solution trains for 3 epochs and scores meaningfully above the single-epoch baseline.
+
+TRAINING
+RECOMMENDED
+Consider character-level or byte-level tokenization as an alternative to BPE, since Old Norse morphology is highly inflectional and a small BPE vocabulary may not capture all word forms
+
+Old Norse has rich case, number, and tense inflections that produce hundreds of surface forms per root word. A small BPE vocabulary (8K-16K) may still fragment rarer inflected forms. Character-level models avoid this entirely by operating on individual characters and learning morphological patterns implicitly. The tradeoff is longer sequences, but with only 1M tokens the total character count is still manageable at around 5M.
+
+MODELING
+RECOMMENDED
+Score candidate options by filling each into the masked position and computing log probability over the complete sentence, using both left and right context around the blank when possible
+
+The distractors are drawn from the same saga and matched by suffix and frequency, so left-context-only scoring often assigns similar probabilities to all four options. Old Norse has relatively free word order governed by case endings, which means the right context carries strong grammatical constraints. A bidirectional scoring approach breaks ties that unidirectional models cannot resolve.
+
+MODELING
+RECOMMENDED
+Analyze which distractor types cause the most errors and adjust the inference strategy to handle the hardest cases, such as same-suffix distractors from the same saga
+
+The distractors in this challenge are context-aware: they come from the same saga, share grammatical suffixes, and have similar corpus frequency. A first-pass solution that scores above random typically fails on items where all four options share a case ending and topic vocabulary. Analyzing these hard cases reveals whether the bottleneck is model capacity, tokenizer resolution, or the scoring strategy.
+
+AGENT BEHAVIOR
+UNIVERSAL

@@ -1,0 +1,56 @@
+Negation And Scope Aware Natural Language Inference
+Overview
+You are given premise–hypothesis sentence pairs. For each pair, predict whether the hypothesis is entailment (0), neutral (1), or contradiction (2) with respect to the premise. The data is synthetic but intentionally adversarial: it mixes negation, double negation, quantifier scope, subtle numerical shifts, and lexical-overlap traps that defeat naive heuristics. Solving this well typically requires a pretrained NLI transformer or LLM-based reasoning on top of the text.
+
+Evaluation
+Submissions are scored using macro F1 over the three classes (entailment, neutral, contradiction). Each class contributes equally regardless of frequency.
+
+from sklearn.metrics import f1_score  
+def evaluate(y_true, y_pred):  
+    return f1_score(y_true, y_pred, average="macro", zero_division=0)  
+Dataset
+public/train.csv: premise, hypothesis, label. Label in {0, 1, 2}.
+public/test.csv: id, premise, hypothesis. No label.
+public/sample_submission.csv: expected submission format.
+Train and test come from the same generator but with held-out combinations of quantifiers and negation patterns reserved for test; the split is deterministic and test contains no labels.
+
+Submission
+Submit a single CSV with:
+
+Column	Type	Description
+id	int	Row identifier from test.csv (same order and count).
+prediction	int	Predicted class: 0 (entailment), 1 (neutral), 2 (contradiction).
+Requirements:
+
+Header row: id,prediction.
+Exactly one row per test row; ids must match test.csv.
+prediction must be 0, 1, or 2 only.
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+33
+Top Score
+1.000
+Created
+Mar 3, 2026
+
+Agent Evaluations

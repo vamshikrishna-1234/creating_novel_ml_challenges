@@ -1,0 +1,107 @@
+"""
+grade.py — Ironhold Arena Ruling Generation v2
+
+Composite metric:
+  40% outcome accuracy  (exact match on ALLOWED/BLOCKED/MODIFIED)
+  30% analysis token F1  (word-level F1 between predicted and true analysis)
+  30% analysis chrF      (character n-gram F-score, catches wrong numbers)
+
+Returns float in [0.0, 1.0]. Higher is better.
+"""
+
+import pandas as pd
+import re
+from collections import Counter
+
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    try:
+        merged = answers.merge(
+            submission, on="question_id", how="left", suffixes=("_true", "_pred")
+        )
+
+        if merged["output"].isna().any():
+            return 0.0
+
+        if merged["question_id"].duplicated().any():
+            return 0.0
+
+        n = len(merged)
+        if n == 0:
+            return 0.0
+
+        outcome_hits = 0
+        token_f1_sum = 0.0
+        chrf_sum = 0.0
+
+        for _, row in merged.iterrows():
+            pred_output = str(row["output"])
+            true_outcome = str(row["outcome"])
+            true_analysis = str(row["analysis"])
+
+            pred_outcome = _extract_tag(pred_output, "outcome").strip().upper()
+            if pred_outcome == true_outcome:
+                outcome_hits += 1
+
+            pred_analysis = _extract_tag(pred_output, "analysis")
+            token_f1_sum += _token_f1(pred_analysis, true_analysis)
+            chrf_sum += _chrf(pred_analysis, true_analysis)
+
+        outcome_acc = outcome_hits / n
+        token_f1 = token_f1_sum / n
+        chrf_score = chrf_sum / n
+
+        score = 0.40 * outcome_acc + 0.30 * token_f1 + 0.30 * chrf_score
+        return float(max(0.0, min(1.0, score)))
+
+    except Exception:
+        return 0.0
+
+
+def _extract_tag(text: str, tag: str) -> str:
+    pattern = f"<{tag}>(.*?)</{tag}>"
+    match = re.search(pattern, text, re.DOTALL)
+    return match.group(1) if match else ""
+
+
+def _token_f1(pred: str, true: str) -> float:
+    pred_tokens = set(pred.lower().split())
+    true_tokens = set(true.lower().split())
+    if not true_tokens and not pred_tokens:
+        return 1.0
+    if not true_tokens or not pred_tokens:
+        return 0.0
+    tp = len(pred_tokens & true_tokens)
+    prec = tp / len(pred_tokens)
+    rec = tp / len(true_tokens)
+    if prec + rec == 0:
+        return 0.0
+    return 2 * prec * rec / (prec + rec)
+
+
+def _chrf(pred: str, true: str, max_n: int = 6, beta: float = 2.0) -> float:
+    """Character n-gram F-score (chrF). Sensitive to exact character sequences."""
+    if not true and not pred:
+        return 1.0
+    if not true or not pred:
+        return 0.0
+
+    pred_ngrams = Counter()
+    true_ngrams = Counter()
+    for n in range(1, max_n + 1):
+        for i in range(len(pred) - n + 1):
+            pred_ngrams[pred[i : i + n]] += 1
+        for i in range(len(true) - n + 1):
+            true_ngrams[true[i : i + n]] += 1
+
+    tp = sum((pred_ngrams & true_ngrams).values())
+    pred_total = sum(pred_ngrams.values())
+    true_total = sum(true_ngrams.values())
+
+    prec = tp / pred_total if pred_total > 0 else 0.0
+    rec = tp / true_total if true_total > 0 else 0.0
+
+    if prec + rec == 0:
+        return 0.0
+
+    return (1 + beta ** 2) * prec * rec / (beta ** 2 * prec + rec)

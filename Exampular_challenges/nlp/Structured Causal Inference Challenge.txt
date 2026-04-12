@@ -1,0 +1,171 @@
+Structured Causal Inference Challenge
+Overview
+In many real-world situations, events do not occur in isolation but form part of a causal structure. Understanding not just whether a relationship exists — but how events influence one another — is central to reasoning in domains such as decision making, planning, and commonsense understanding.
+
+This challenge focuses on inferring causal structure from small sets of natural language statements from daily world statements.
+
+Each sample consists of three short event descriptions drawn from everyday situations. Within each set:
+
+One statement influences another through a causal relationship
+One statement is unrelated
+Participants must predict the direction of influence between statements and identify the irrelevant statement.
+
+Unlike traditional causal selection tasks, this problem requires constructing a directed relationship between events, moving beyond pairwise plausibility toward structural understanding.
+
+Evaluation
+Submissions are scored using Macro F1 Score over directed edges.
+
+For each sample, participants must predict:
+
+The causal edge between two statements
+The statement that has no causal role
+Each prediction is evaluated across:
+
+Correct causal source
+Correct causal target
+Correct identification of irrelevant node
+Final score is the Macro F1 averaged across:
+
+Cause from prediction
+Cause to prediction
+Irrelevance detection
+from sklearn.metrics import f1_score
+
+def evaluate(y_true, y_pred):
+
+    # Extract true values
+    true_from = [x["cause_from"] for x in y_true]
+    true_to = [x["cause_to"] for x in y_true]
+    true_irrel = [x["irrelevant"] for x in y_true]
+
+    # Extract predicted values
+    pred_from = [x["cause_from"] for x in y_pred]
+    pred_to = [x["cause_to"] for x in y_pred]
+    pred_irrel = [x["irrelevant"] for x in y_pred]
+
+    # F1 for each component
+    from_f1 = f1_score(true_from, pred_from, average="macro")
+    to_f1 = f1_score(true_to, pred_to, average="macro")
+    irr_f1 = f1_score(true_irrel, pred_irrel, average="macro")
+
+    # Final score
+    return (from_f1 + to_f1 + irr_f1) / 3
+Dataset
+The dataset is provided in JSON Lines format.
+
+Directory Structure
+public/
+    train.jsonl
+    test.jsonl
+Train Set
+It consists of 350 entries
+
+Each entry contains:
+
+
+`| Column     | Type        | Description                                  |`
+
+`|------------|-------------|----------------------------------------------|`
+
+`| s1         | string      | Statement 1                                  |`
+
+`| s2         | string      | Statement 2                                  |`
+
+`| s3         | string      | Statement 3                                  |`
+
+`| cause_from | int         | Index of Statement from which cause arises    |`
+
+`| cause_to   | int         | Index of Statement to which cause refers      |`
+
+`| irrelevant | int         | Index of Statement which is unrelated        |`
+
+`| idx        | int         | unique identifier                            |`
+
+Example:
+
+{
+  "s1": "...",
+  "s2": "...",
+  "s3": "...",
+  "cause_from": 1,
+  "cause_to": 0,
+  "irrelevant": 2,
+  "idx": 3
+}
+Test Set
+It consists of 250 entries.
+
+Contains:
+
+
+`| Column     | Type   | Description                                  |`
+
+`|------------|--------|----------------------------------------------|`
+
+`| s1         | string | Statement 1                                  |`
+
+`| s2         | string | Statement 2                                  |`
+
+`| s3         | string | Statement 3                                  |`
+
+`| idx        | int    | Record Identifier                            |`  
+
+Participants must infer the causal structure.
+
+Submission
+Submit a CSV file with the following format :
+
+
+`| Column     | Type |          Description           |`
+
+`|------------|------|--------------------------------|`
+
+`| idx        | int  | Row identifier from test.jsonl |`
+
+`| cause_from | int  | Index of causal source (0,1,2) |`
+
+`| cause_to   | int  | Index of causal target (0,1,2) |`
+
+`| irrelevant | int  | Index of unrelated statement   |`
+
+Example Submission
+idx,cause_from,cause_to,irrelevant
+0,1,0,2
+1,0,2,1
+2,2,1,0
+...
+Requirements
+Must contain exactly 250 rows
+Include header row
+Index values must be in {0,1,2}
+The name of the submission file must be submission.csv
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+81
+Top Score
+0.897
+Created
+Feb 27, 2026
+
+Agent Evaluations

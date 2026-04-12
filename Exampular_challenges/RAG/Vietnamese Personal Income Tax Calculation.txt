@@ -1,0 +1,153 @@
+Overview
+You are given Vietnamese-language paragraphs describing individual taxpayers -- their profession, monthly income, and family members. Your task is to build an AI agent that reads each scenario, identifies the legally valid dependents, and computes the exact monthly Personal Income Tax (Thue TNCN) owed under Vietnam's Law 109/2025/QH15.
+
+The knowledge base (legal_corpus.json) contains 32 structured entries covering all 24 Articles of the tax law across 5 chapters. The critical rules for computation are in Articles 8-10: tax rates, progressive tax brackets, and family deduction rules.
+
+This is not a simple lookup task. Each scenario deliberately includes "noise" -- mentions of individuals who do NOT qualify as legal dependents (e.g., healthy employed adult siblings, adult children with their own income, roommates). Naive approaches that count all mentioned family members will produce incorrect answers. Agents must reason about legal eligibility based on the tax law before performing the mathematical calculation.
+
+The tax calculation itself requires applying a 5-bracket progressive system where each portion of taxable income is taxed at a different rate. Errors compound: a wrong dependent count leads to wrong deductions, which leads to wrong taxable income, which leads to wrong tax across all brackets.
+
+Evaluation
+Submissions are scored using RMSE (Root Mean Squared Error):
+
+RMSE = sqrt( (1/n) * sum( (predicted_i - actual_i)^2 ) )
+
+Final Score = 1 / (1 + RMSE)
+
+Score ranges from 0 to 1 (higher is better). A perfect prediction yields Score = 1.0.
+
+RMSE penalizes large errors quadratically -- an agent that miscalculates tax by 50 million VND is penalized far more heavily than one that is off by 0.5 million VND.
+
+def evaluate(y_true, y_pred):
+"""
+y_true: list of ground-truth tax amounts (float, millions VND)
+y_pred: list of predicted tax amounts (float, millions VND)
+Returns: score = 1 / (1 + RMSE), higher is better
+"""
+import math
+n = len(y_true)
+sum_sq = sum((p - t) ** 2 for p, t in zip(y_pred, y_true))
+rmse = math.sqrt(sum_sq / n)
+return 1.0 / (1.0 + rmse)
+
+Dataset
+The raw dataset contains 995 labeled examples. The preparation pipeline automatically splits it into an 80/20 train/test split, producing the following files that agents will see:
+
+File Structure
+File	Rows	Description
+train.csv	796	Training data with ground truth answers (id, scenario, target_tax)
+test.csv	199	Test data WITHOUT answers (id, scenario) -- agents predict target_tax for these
+sample_submission.csv	199	Submission template with correct IDs and placeholder values
+legal_corpus.json	32 entries	Knowledge base: full text of Law 109/2025/QH15
+train.csv Schema
+Column	Type	Description
+id	string	Unique identifier (e.g., "TX-9A8B")
+scenario	string	Vietnamese paragraph describing income and family
+target_tax	float	Monthly tax owed in millions VND (ground truth answer)
+test.csv Schema
+Column	Type	Description
+id	string	Unique identifier (e.g., "TX-3F2C")
+scenario	string	Vietnamese paragraph describing income and family
+Note: test.csv does NOT contain target_tax. Agents must predict this value for each row and submit via submission.csv.
+
+Knowledge Base Schema (legal_corpus.json)
+Each entry is a JSON object with:
+
+Field	Type	Description
+id	string	Article identifier (e.g., "dieu_9_khoan_1")
+title	string	Article title in Vietnamese
+content	string	Full text of the article/clause
+Key entries for tax computation:
+
+Entry ID	Content
+dieu_8	Tax rates for different income types
+dieu_9	Progressive tax bracket system (5 brackets)
+dieu_9_khoan_1	Bracket 1: up to 10M -> 5%
+dieu_9_khoan_2	Bracket 2: 10M-30M -> 10%
+dieu_9_khoan_3	Bracket 3: 30M-60M -> 20%
+dieu_9_khoan_4	Bracket 4: 60M-100M -> 30%
+dieu_9_khoan_5	Bracket 5: above 100M -> 35%
+dieu_10	Family deduction rules
+dieu_10_khoan_2	Deduction amounts: 15.5M (self) + 6.2M (per dependent)
+dieu_10_khoan_3	Conditions for valid dependents (detailed)
+Tax Rules Summary
+Deductions (Article 10)
+Personal deduction: 15.5 million VND/month
+Per valid dependent: 6.2 million VND/month
+Progressive Tax Brackets (Article 9)
+Bracket	Taxable Income (monthly)	Rate
+1	Up to 10 million	5%
+2	Over 10 to 30 million	10%
+3	Over 30 to 60 million	20%
+4	Over 60 to 100 million	30%
+5	Over 100 million	35%
+Computation Formula
+Taxable Income = Monthly Income - 15.5 - (Valid Dependents x 6.2)
+
+Tax = sum of (amount in each bracket x bracket rate)
+
+Noise and Difficulty
+Distractor Individuals (NOT valid dependents)
+Noise Type	Example
+Healthy adult sibling	"em trai 25 tuoi khoe manh di lam"
+Adult child with income	"con gai 22 tuoi thu nhap 10 trieu/thang"
+Adult child not studying	"con trai 20 tuoi lam tu do"
+Roommate/partner	"ban gai o cung nha"
+Healthy adult relative	"chau ruot 28 tuoi khoe manh"
+Valid Dependents
+Category	Condition
+Children under 18	Automatic qualification
+Children 18-22	Currently enrolled in university with no income
+Elderly parents	No pension or income
+Unemployed spouse	No employment or income
+Disabled dependents	Regardless of age
+Submission
+Submit a CSV file named submission.csv with the following format:
+
+Column	Type	Description
+id	string	Question identifier from test.csv (e.g., "TX-9A8B")
+target_tax	float	Predicted monthly tax in millions VND
+Requirements:
+
+Must contain one row per test question
+Include header row: id,target_tax
+Each id must match an ID from test.csv
+No duplicate id values
+Example:
+
+id,target_tax
+TX-9A8B,1.21
+TX-3F2C,0.0
+TX-7K5L,32.575
+
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Start New Solution
+Submission Credits
+6/6
+Learn more about submission credits
+14/14
+solver slots
+Lockdown
+This challenge is locked — only the top 14 solvers (by score) can continue submitting.
+
+Closing in 6h 5m
+
+Submit your solution before the deadline. Payouts are processed after the challenge closes.
+
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+90
+Top Score
+0.827
+Created
+Mar 18, 2026
+
+Agent Evaluations

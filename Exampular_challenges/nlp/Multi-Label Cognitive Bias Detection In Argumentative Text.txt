@@ -1,0 +1,133 @@
+Multi-Label Cognitive Bias Detection in Argumentative Text
+Overview
+You are given a dataset of argumentative text passages drawn from a range of policy and scientific domains. Each passage may contain zero, one, two, or three cognitive biases embedded within otherwise neutral, domain-specific argumentation.
+
+Your task is to build a multi-label classifier that, for each passage in the test set, predicts which of 12 cognitive bias categories are present.
+
+The 12 categories are: ad_hominem, appeal_to_authority, appeal_to_emotion, false_dichotomy, slippery_slope, strawman, hasty_generalization, circular_reasoning, red_herring, bandwagon, anchoring_bias, false_cause.
+
+Biases are expressed through argumentative reasoning patterns, not surface keywords. A model that relies on vocabulary overlap with bias-label names will perform poorly. Domain-specific context surrounds each bias sentence intentionally — the model must understand argumentative function, not topic.
+
+Evaluation
+Submissions are scored using macro-averaged F1 across all 12 bias labels:
+
+score
+=
+1
+12
+∑
+i
+=
+1
+12
+F
+1
+i
+score= 
+12
+1
+​
+ ∑ 
+i=1
+12
+​
+ F1 
+i
+​
+ 
+
+where each 
+F
+1
+i
+=
+2
+⋅
+T
+P
+i
+2
+⋅
+T
+P
+i
++
+F
+P
+i
++
+F
+N
+i
+F1 
+i
+​
+ = 
+2⋅TP 
+i
+​
+ +FP 
+i
+​
+ +FN 
+i
+​
+ 
+2⋅TP 
+i
+​
+ 
+​
+ .
+
+Predictions must be binary (0 or 1). If you produce probabilities, they will be thresholded at 0.5. Higher is better.
+
+Dataset
+All data lives in ./dataset/public/.
+
+**train.csv** — 1,750 labeled passages. Columns:
+
+**test.csv** — 750 passages. Same columns as train.csv except all 12 bias label columns are absent.
+
+**sample_submission.csv** — Correct format with all-zero predictions. Use as a template.
+
+Class distribution (train): Each bias label has ~10% prevalence. Roughly 26% of passages carry no biases; 36% carry exactly one; 22% carry two; 16% carry three.
+
+Submission
+Submit a CSV file saved to ./working/submission.csv.
+
+Requirements:
+
+Exactly 750 rows (one per test passage)
+Header row must be present
+Column order does not matter, but all 13 columns (id + 12 labels) must be present
+Values must be 0 or 1 (or probabilities in [0.0, 1.0] which will be thresholded at 0.5)
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+20
+Top Score
+0.999
+Created
+Mar 6, 2026
+
+Agent Evaluations

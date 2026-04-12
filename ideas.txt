@@ -1,0 +1,370 @@
+================================================================================
+CHALLENGE IDEAS — Brainstorm for Novel Synthetic ML Benchmark (Novelty ≥ 3)
+================================================================================
+Read: ULP Legal Multi-Task NLI, Self-Modifying Language, + prior challenges.
+Goal: Distinct concepts, high novelty, human improvement scope. No direct copy.
+================================================================================
+
+--------------------------------------------------------------------------------
+IDEA 1: Implicit Temporal Claim Ordering
+--------------------------------------------------------------------------------
+Topic:        Temporal reasoning from implicit natural-language references
+Domain:       NLP (classification / ranking)
+Data type:    Fully synthetic. ~15–25K rows. Each row: 4–6 short "event claims"
+              (2–3 sentences each) with no explicit dates; implicit cues only
+              ("Before the merger", "After the incident with Unit B", "prior to
+              the shutdown"). Target: correct chronological permutation (1,2,3,4,5).
+
+Why novel?    (1) Temporal reasoning from implicit cues, not dates/timestamps.
+              (2) Output is a permutation—structured prediction, not class.
+              (3) Requires understanding discourse and reference resolution.
+              (4) No existing benchmark combines implicit temporal DAG + ordering.
+
+Scope for human improvement: Logical reasoning over subtle temporal markers;
+              pragmatic understanding of "before/after/prior/following"; handling
+              ambiguities when claims are underspecified. Humans can apply
+              domain heuristics and re-read for coherence.
+
+--------------------------------------------------------------------------------
+IDEA 2: Negation Scope Resolution
+--------------------------------------------------------------------------------
+Topic:        Predicting which entities/events are negated vs affirmed in complex
+              sentences with nested negations and quantifiers.
+Domain:       NLP (span extraction + classification)
+Data type:    Fully synthetic. ~20K rows. Each row: single sentence (with
+              nested negations, modals, quantifiers like "not all", "none but")
+              + list of entity mentions. Target: per-entity label—negated,
+              affirmed, or ambiguous.
+
+Why novel?    (1) Formal semantics / negation scope is understudied in benchmarks.
+              (2) Combines semantic parsing with scope disambiguation.
+              (3) Deceptively simple surface forms; hard for models that rely on
+              heuristics (e.g., "not" always negates nearest verb).
+              (4) No standard benchmark for negation scope at entity level.
+
+Scope for human improvement: Linguists and formal semanticists excel at scope
+              disambiguation; humans can trace logical structure; edge cases
+              (e.g., "not only X but also Y") require careful reading.
+
+--------------------------------------------------------------------------------
+IDEA 3: Fictional Curriculum Prerequisite Ordering
+--------------------------------------------------------------------------------
+Topic:        Given a target skill and a set of fictional learning modules
+              (titles + short descriptions), predict the optimal learning order
+              (permutation) satisfying prerequisite constraints.
+Domain:       Recommendation (ranking) / NLP
+Data type:    Fully synthetic. ~20–30K rows. Each row: target skill ID +
+              list of 6–10 module IDs with descriptions. Prerequisites encoded
+              in generation; some latent (inferable from descriptions only).
+              Target: valid permutation of module IDs (NDCG / Kendall tau).
+
+Why novel?    (1) Curriculum design as a benchmark; combines prerequisite
+              reasoning with content understanding. (2) Output is ordering,
+              not single-item recommendation. (3) Latent prerequisites force
+              reading descriptions, not just graph structure.
+
+Scope for human improvement: Instructional designers understand learning
+              science; humans can infer prerequisites from content; can propose
+              alternative valid orderings when multiple exist.
+
+--------------------------------------------------------------------------------
+IDEA 4: Counterfactual Outcome Prediction
+--------------------------------------------------------------------------------
+Topic:        Given a short scenario (fictional incident report, system state)
+              and an intervention ("What if X had not happened?"), predict the
+              counterfactual outcome class (e.g., prevented, unchanged, worsened).
+Domain:       NLP (classification)
+Data type:    Fully synthetic. ~25K rows. Generate causal chains with
+              interventions; outcomes determined by causal graph. Scenarios
+              described in natural language; no explicit graph given.
+
+Why novel?    (1) Counterfactual reasoning from text is rare in benchmarks.
+              (2) Requires causal inference, not just correlation. (3) Distinct
+              from NLI—about what *would have* happened, not entailment.
+
+Scope for human improvement: Domain experts understand causal structure;
+              humans can reason about confounders and alternate pathways;
+              subtle interventions require careful causal reasoning.
+
+--------------------------------------------------------------------------------
+IDEA 5: Synthetic Protocol Message Conformance Classification
+--------------------------------------------------------------------------------
+Topic:        Given a fictional communication protocol specification (rules in
+              NL) and a message trace (ordered list of messages), classify each
+              message as conforming or violating, and if violating, the
+              violation type (e.g., sequence_error, missing_field, invalid_value).
+Domain:       NLP (sequence tagging / multi-label)
+Data type:    Fully synthetic. ~20K rows. Protocol rules + message traces
+              generated programmatically; some traces inject violations.
+              No real protocol—fully fictional domain.
+
+Why novel?    (1) Protocol compliance as NLP task; not NLI, not sentiment.
+              (2) Requires tracking state across messages; sequential reasoning.
+              (3) Multi-label per message; structured output.
+
+Scope for human improvement: Protocol designers can catch edge cases;
+              humans can interpret ambiguous rules; manual review can surface
+              novel violation patterns.
+
+--------------------------------------------------------------------------------
+IDEA 6: Cross-Document Timeline Reconstruction
+--------------------------------------------------------------------------------
+Topic:        Given 4–6 short fictional documents (incident logs, bulletins)
+              with no explicit timestamps, predict the order they occurred in.
+              Documents reference each other implicitly ("following the earlier
+              outage", "prior to the investigation").
+Domain:       RAG / NLP (ranking)
+Data type:    Fully synthetic. ~15–20K rows. Generate event sequences;
+              render as multi-document sets with implicit references. Target:
+              permutation of document IDs.
+
+Why novel?    (1) Cross-document temporal reasoning; retrieval + ordering.
+              (2) No explicit timestamps; must infer from discourse.
+              (3) Multi-doc setup closer to real analyst workflows.
+
+Scope for human improvement: Analysts excel at cross-doc reasoning;
+              humans can resolve ambiguous references; can flag inconsistent
+              orderings.
+
+--------------------------------------------------------------------------------
+IDEA 7: Fictional Constraint Satisfaction from Natural Language
+--------------------------------------------------------------------------------
+Topic:        Given a set of constraints in natural language (e.g., "Node A
+              must be in zone X", "Service B requires at least 2 instances")
+              and a candidate configuration (structured), predict valid/invalid
+              and, if invalid, which constraint IDs are violated.
+Domain:       NLP (multi-label classification)
+Data type:    Fully synthetic. ~25K rows. Generate constraints + configs;
+              some configs violate 0, 1, or multiple constraints. Constraints
+              written in varied NL; no formal logic given.
+
+Why novel?    (1) Constraint reasoning from NL; not formal SAT/solver input.
+              (2) Requires understanding both constraint intent and config
+              structure. (3) Multi-label violation identification.
+
+Scope for human improvement: Systems engineers understand constraint
+              semantics; humans can propose fixes; edge cases (e.g., "at least
+              one of A or B") require careful interpretation.
+
+--------------------------------------------------------------------------------
+IDEA 8: Synthetic Lexicon Induction from Context
+--------------------------------------------------------------------------------
+Topic:        Given example sentences using words from a fictional language
+              (artificial tokens with consistent usage patterns), predict the
+              grammatical class (noun/verb/adj) or "meaning slot" for unseen
+              words when shown new context sentences.
+Domain:       NLP (classification)
+Data type:    Fully synthetic. ~20K rows. Generate sentences in fictional
+              lang; each word has canonical class. For unseen words, provide
+              N context sentences; predict class. Vocabulary ~50–80 tokens.
+
+Why novel?    (1) Lexical acquisition from distributional context; no semantics.
+              (2) Synthetic language avoids pretraining bias. (3) Evaluates
+              compositional pattern learning, not memorization.
+
+Scope for human improvement: Linguists understand morphological and
+              distributional cues; humans can form hypotheses from few
+              examples; low-shot pattern recognition.
+
+--------------------------------------------------------------------------------
+IDEA 9: Adversarial Paraphrase Preservation Detection
+--------------------------------------------------------------------------------
+Topic:        Given sentence pairs, predict whether one is an *adversarial*
+              paraphrase of the other—i.e., designed to preserve meaning for
+              humans but flip model behavior (e.g., sentiment, NLI). Binary or
+              ternary (preserve / adversarial / unrelated).
+Domain:       NLP / LLM Evaluation
+Data type:    Synthetic + curated. ~15–20K pairs. Generate pairs via
+              substitution, insertion, lexical overlap changes; some designed
+              to be adversarial. Optionally include human-annotated gold.
+
+Why novel?    (1) Adversarial robustness as explicit benchmark. (2) Focus on
+              paraphrase *intent* (preserve vs. flip). (3) Connects to
+              trustworthy AI evaluation.
+
+Scope for human improvement: Humans can judge semantic equivalence;
+              red-teamers can create novel adversarial patterns; human
+              disagreement itself is informative.
+
+--------------------------------------------------------------------------------
+IDEA 10: Fictional Citation Graph Edge Prediction
+--------------------------------------------------------------------------------
+Topic:        Given pairs of paper abstracts (fictional domain), predict whether
+              paper A cites paper B, or predict edge strength (none / weak /
+              strong). Citations determined by topic overlap + generation rules.
+Domain:       RAG / Recommendation
+Data type:    Fully synthetic. ~25K rows. Generate abstract pairs with
+              controlled topical similarity; assign citations by rules +
+              noise. No real papers.
+
+Why novel?    (1) Citation reasoning in fully fictional academia. (2)
+              Requires understanding abstract content to predict citation
+              likelihood. (3) Ordinal or multi-class edge prediction.
+
+Scope for human improvement: Researchers understand citation norms;
+              humans can judge topical relevance; can identify anomalous
+              citation patterns.
+
+================================================================================
+SEQ2SEQ-SPECIFIC IDEAS (Input → Output Generation)
+================================================================================
+Pattern: NL/structured input → generated output (text, JSON, code, etc.)
+Excludes: Self-Modifying Language, LaTeX→Abstract, Sentence Recovery, Japanese NLU.
+================================================================================
+
+--------------------------------------------------------------------------------
+SEQ-1: Event Narrative to Structured Timeline JSON
+--------------------------------------------------------------------------------
+Topic:        Given 4–6 unordered event descriptions (2–3 sentences each) with
+              implicit temporal references, generate a JSON timeline:
+              [{"id":1,"event":"...","order":2,"relations":["before:3"]}]
+Domain:       Seq2Seq (text → structured output)
+Data type:    Fully synthetic. ~20K rows. Generate event sequences; surface as
+              NL descriptions with "before X", "after Y", "during the incident".
+              Target: canonical JSON with order + relations.
+
+Why novel?    (1) NL → structured temporal representation; not just permutation.
+              (2) Output is JSON; must generate valid schema. (3) Requires
+              resolving implicit refs to produce explicit relations. (4) No
+              existing benchmark for timeline extraction as generation.
+
+Scope for human improvement: Analysts can construct timelines from ambiguous
+              narratives; humans handle underspecified orderings; can propose
+              alternative valid structures when underdetermined.
+
+--------------------------------------------------------------------------------
+SEQ-2: Corrupted Structured Row Recovery (CSV/JSON)
+--------------------------------------------------------------------------------
+Topic:        Given a corrupted row from a fictional schema (shuffled columns,
+              dropped delimiters, escaped chars broken, type coercion noise),
+              generate the restored canonical row. Input: messy string. Output:
+              clean JSON or CSV row matching schema.
+Domain:       Seq2Seq (text → structured text)
+Data type:    Fully synthetic. ~25K rows. Define fictional schema (e.g., 6–8
+              fields); generate valid rows; apply corruption (column shuffle,
+              delimiter injection, truncation). Target: exact restored row.
+
+Why novel?    (1) Structured data recovery as Seq2Seq; distinct from sentence
+              recovery (different token/grammar space). (2) Schema-aware output.
+              (3) Corruption patterns (e.g., CSV injection) require format
+              understanding, not just language model.
+
+Scope for human improvement: Data engineers understand escaping, delimiters;
+              humans can infer schema from partial cues; edge cases in
+              nested structures.
+
+--------------------------------------------------------------------------------
+SEQ-3: Multi-Turn Dialogue to Action Log
+--------------------------------------------------------------------------------
+Topic:        Given a multi-turn conversation (booking, support, negotiation),
+              generate a structured action log: ordered list of (action_type,
+              entity, value, turn_ref). E.g., [("book","room","A101",3),
+              ("cancel","previous","",5)]. Fictional domain.
+Domain:       Seq2Seq (dialogue → structured sequence)
+Data type:    Fully synthetic. ~15–20K rows. Generate dialogues with explicit
+              actions; derive ground-truth action logs. Some turns are filler;
+              coreference ("that room", "the earlier one").
+
+Why novel?    (1) Dialogue understanding → structured log; not intent/slot
+              classification. (2) Output is sequence of tuples; variable length.
+              (3) Requires resolving references across turns. (4) Different from
+              NLU command—multi-turn state accumulation.
+
+Scope for human improvement: Annotators understand implicit actions; humans
+              can infer intended vs stated actions; ambiguous dialogues need
+              human judgment.
+
+--------------------------------------------------------------------------------
+SEQ-4: Fictional Protocol Specification to Message Sequence
+--------------------------------------------------------------------------------
+Topic:        Given a protocol spec in natural language (rules for valid
+              message sequences) and a goal ("achieve handshake"), generate a
+              valid message sequence (list of message strings) that satisfies
+              the protocol. Inverse of conformance check—generation from rules.
+Domain:       Seq2Seq (NL spec → message sequence)
+Data type:    Fully synthetic. ~15K rows. Protocol specs + goals; valid
+              sequences generated by interpreter; multiple valid solutions.
+
+Why novel?    (1) NL rules → executable trace; requires understanding protocol
+              semantics. (2) Multiple valid outputs; flexible evaluation
+              (validity check + similarity). (3) Distinct from Self-Modifying
+              Language (no rule execution, protocol is NL). (4) Generation, not
+              classification.
+
+Scope for human improvement: Protocol designers know valid edge cases; humans
+              can generate minimal or optimal sequences; can handle underspec.
+
+--------------------------------------------------------------------------------
+SEQ-5: Error Log Stack Trace to Root-Cause Summary
+--------------------------------------------------------------------------------
+Topic:        Given a fictional error log (stack trace, timestamps, log lines),
+              generate a 1–2 sentence human-readable root-cause summary. Fully
+              synthetic logs with known causal structure.
+Domain:       Seq2Seq (log text → summary text)
+Data type:    Fully synthetic. ~20K rows. Generate causal failure chains;
+              render as log format; derive gold summary. Some logs have
+              red herrings; true cause may be subtle.
+
+Why novel?    (1) Log understanding → summary; operational/debugging use case.
+              (2) Requires causal reasoning over log structure, not just
+              extraction. (3) Synthetic avoids real-system bias. (4) BLEU/ROUGE
+              or similarity for eval; human readability matters.
+
+Scope for human improvement: SREs and devs excel at log triage; humans can
+              spot non-obvious causation; phrasing quality varies.
+
+--------------------------------------------------------------------------------
+SEQ-6: Natural Language Constraint to Valid Configuration
+--------------------------------------------------------------------------------
+Topic:        Given 3–5 constraints in NL (e.g., "Node A in zone X", "at least
+              2 replicas for B") and a fictional system schema, generate a
+              valid JSON configuration satisfying all constraints. Multiple
+              valid configs possible.
+Domain:       Seq2Seq (NL constraints → JSON config)
+Data type:    Fully synthetic. ~20K rows. Constraints + schema; use solver to
+              generate valid configs; present constraints only at test time.
+
+Why novel?    (1) Constraint satisfaction as generation; output is structured.
+              (2) Inverse of "config + constraints → valid?" (Idea 7). (3)
+              Requires both NL understanding and constraint reasoning. (4) Fictional
+              schema avoids real-system leakage.
+
+Scope for human improvement: Systems engineers understand constraint
+              implications; humans can propose minimal or preferred configs;
+              underspecified constraints allow human creativity.
+
+================================================================================
+SEQ2SEQ SUMMARY
+================================================================================
+
+IDEA  | TOPIC                          | INPUT→OUTPUT           | NOVELTY | HUMAN EDGE
+------|---------------------------------|------------------------|---------|------------------
+ SEQ-1| Event Narrative→Timeline JSON   | NL events → JSON       | 4       | Analyst reasoning
+ SEQ-2| Corrupted Row Recovery         | messy row → clean row  | 4       | Data engineering
+ SEQ-3| Dialogue→Action Log             | dialogue → tuple seq   | 4       | Annotation
+ SEQ-4| Protocol Spec→Message Sequence  | NL rules → msgs        | 4       | Protocol design
+ SEQ-5| Error Log→Root-Cause Summary   | log → summary          | 3       | SRE/debugging
+ SEQ-6| NL Constraints→Valid Config    | constraints → JSON     | 4       | Systems eng
+
+================================================================================
+SUMMARY TABLE (Novelty Assessment) — Original Ideas
+================================================================================
+
+IDEA  | TOPIC                          | DOMAIN       | NOVELTY | HUMAN EDGE
+------|---------------------------------|--------------|---------|------------------
+  1   | Implicit Temporal Ordering      | NLP          | 4       | Logical reasoning
+  2   | Negation Scope Resolution       | NLP          | 4       | Formal semantics
+  3   | Curriculum Prerequisite Order   | Recommendation| 4     | Instructional design
+  4   | Counterfactual Outcome          | NLP          | 4       | Causal inference
+  5   | Protocol Conformance            | NLP          | 3       | Protocol design
+  6   | Cross-Doc Timeline Reconstruct  | RAG          | 4       | Analyst reasoning
+  7   | Constraint Satisfaction from NL | NLP          | 4       | Systems engineering
+  8   | Lexicon Induction               | NLP          | 4       | Linguistics
+  9   | Adversarial Paraphrase          | NLP/LLM Eval | 4       | Red-teaming
+ 10   | Citation Graph Edge             | RAG/Rec      | 3       | Academic norms
+
+================================================================================
+Notes: All ideas avoid direct overlap with ULP Legal (multi-task NLI),
+Self-Modifying Language (rule execution), Nexari, ORBIT, MERIDIAN.
+Some conceptual overlap (e.g., multi-target, synthetic) is acceptable.
+================================================================================

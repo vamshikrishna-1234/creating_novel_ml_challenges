@@ -1,0 +1,140 @@
+from pathlib import Path
+
+
+def prepare(raw: Path, public: Path, private: Path) -> None:
+    import random as _rnd
+    import numpy as np
+    import pandas as pd
+
+    raw, public, private = Path(raw), Path(public), Path(private)
+
+    items = pd.read_csv(raw / "items.csv")
+    annotators = pd.read_csv(raw / "annotators.csv")
+    annotations = pd.read_csv(raw / "annotations.csv")
+    consensus = pd.read_csv(raw / "consensus.csv")
+
+    rng = _rnd.Random(314159265)
+    np_rng = np.random.RandomState(77)
+
+    all_items = sorted(items["item_id"].tolist())
+    rng_split = _rnd.Random(271828182)
+    rng_split.shuffle(all_items)
+
+    split_idx = int(len(all_items) * 0.8)
+    train_ids = set(all_items[:split_idx])
+    test_ids = set(all_items[split_idx:])
+
+    item_feat_cols = sorted([c for c in items.columns if c.startswith("if_")])
+    n_real_if = len(item_feat_cols)
+    n_decoy_if = 4
+    all_if_labels = [f"x_{i:02d}" for i in range(n_real_if + n_decoy_if)]
+    rng.shuffle(all_if_labels)
+    if_rename = {item_feat_cols[i]: all_if_labels[i] for i in range(n_real_if)}
+    items = items.rename(columns=if_rename)
+    items = items.drop(columns=["topic", "true_label"])
+
+    n_items_total = len(items)
+    for j in range(n_real_if, n_real_if + n_decoy_if):
+        items[all_if_labels[j]] = np_rng.normal(0, 1, n_items_total).round(4)
+
+    ann_feat_cols = sorted([c for c in annotators.columns if c.startswith("af_")])
+    n_real_af = len(ann_feat_cols)
+    n_decoy_af = 3
+    all_af_labels = [f"e_{i:02d}" for i in range(n_real_af + n_decoy_af)]
+    rng.shuffle(all_af_labels)
+    af_rename = {ann_feat_cols[i]: all_af_labels[i] for i in range(n_real_af)}
+    annotators = annotators.rename(columns=af_rename)
+
+    n_ann_total = len(annotators)
+    for j in range(n_real_af, n_real_af + n_decoy_af):
+        annotators[all_af_labels[j]] = np_rng.normal(0, 1, n_ann_total).round(4)
+
+    grp_feat = annotators[all_af_labels[1]].values
+    boundaries = np.percentile(grp_feat, [20, 40, 60, 80])
+    annotators["source_group"] = np.digitize(grp_feat, boundaries).astype(int)
+
+    annotators = annotators.rename(columns={"annotator_id": "source_id"})
+    annotations = annotations.rename(columns={"annotator_id": "source_id"})
+
+    old_ids = sorted(annotators["source_id"].tolist())
+    new_ids = list(range(len(old_ids)))
+    rng.shuffle(new_ids)
+    id_map = {old_ids[i]: new_ids[i] for i in range(len(old_ids))}
+    annotators["source_id"] = annotators["source_id"].map(id_map)
+    annotations["source_id"] = annotations["source_id"].map(id_map)
+
+    annotations = annotations.rename(columns={"label": "reading"})
+
+    train_ann = annotations[annotations["item_id"].isin(train_ids)].copy()
+    test_ann_full = annotations[annotations["item_id"].isin(test_ids)].copy()
+
+    test_ann_rows = []
+    for item_id in sorted(test_ids):
+        item_anns = test_ann_full[test_ann_full["item_id"] == item_id]
+        n_keep = rng.randint(2, 3)
+        n_keep = min(n_keep, len(item_anns))
+        indices = sorted(item_anns.index.tolist())
+        rng.shuffle(indices)
+        kept = indices[:n_keep]
+        test_ann_rows.append(item_anns.loc[kept])
+
+    test_ann = pd.concat(test_ann_rows, ignore_index=True)
+
+    np_rng_conf = np.random.RandomState(999)
+    ann_feat_lookup = annotators.set_index("source_id")[all_af_labels[0]]
+
+    for df_ref in [train_ann, test_ann]:
+        base = df_ref["source_id"].map(ann_feat_lookup).values.astype(float)
+        conf = 0.5 + 0.3 * np.tanh(base * 0.6)
+        conf = conf + np_rng_conf.normal(0, 0.08, len(df_ref))
+        df_ref["confidence"] = np.clip(conf, 0.05, 0.99).round(3)
+
+    np_rng_noise = np.random.RandomState(555)
+    n_noise = int(len(test_ann) * 0.05)
+    noise_items = np_rng_noise.choice(sorted(test_ids), n_noise)
+    noise_sources = np_rng_noise.choice(sorted(annotators["source_id"]), n_noise)
+    noise_readings = np_rng_noise.randint(0, 6, n_noise)
+    noise_conf = np_rng_noise.uniform(0.78, 0.96, n_noise).round(3)
+    noise_df = pd.DataFrame({
+        "item_id": noise_items,
+        "source_id": noise_sources,
+        "reading": noise_readings,
+        "confidence": noise_conf,
+    })
+    test_ann = pd.concat([test_ann, noise_df], ignore_index=True)
+    test_ann = test_ann.drop_duplicates(
+        subset=["item_id", "source_id"], keep="first"
+    )
+    test_ann = test_ann.sort_values("item_id").reset_index(drop=True)
+    train_ann = train_ann.sort_values("item_id").reset_index(drop=True)
+
+    np_rng_ctx = np.random.RandomState(777)
+    train_ann["reading_context"] = np_rng_ctx.randint(0, 4, len(train_ann))
+    test_ann["reading_context"] = np_rng_ctx.randint(0, 4, len(test_ann))
+
+    consensus = consensus.rename(columns={"consensus_label": "reference_level"})
+    train_labels = consensus[consensus["item_id"].isin(train_ids)].copy()
+    test_labels = consensus[consensus["item_id"].isin(test_ids)].copy()
+    train_labels = train_labels.sort_values("item_id").reset_index(drop=True)
+    test_labels = test_labels.sort_values("item_id").reset_index(drop=True)
+
+    test_modes = test_ann.groupby("item_id")["reading"].agg(
+        lambda x: int(x.mode().iloc[0])
+    ).reset_index()
+    test_modes.columns = ["item_id", "reference_level"]
+    sample_sub = test_modes.sort_values("item_id").reset_index(drop=True)
+
+    items = items.sort_values("item_id").reset_index(drop=True)
+    annotators = annotators.sort_values("source_id").reset_index(drop=True)
+
+    public.mkdir(parents=True, exist_ok=True)
+    private.mkdir(parents=True, exist_ok=True)
+
+    train_ann.to_csv(public / "train_readings.csv", index=False)
+    test_ann.to_csv(public / "test_readings.csv", index=False)
+    train_labels.to_csv(public / "train_labels.csv", index=False)
+    items.to_csv(public / "items.csv", index=False)
+    annotators.to_csv(public / "sources.csv", index=False)
+    sample_sub.to_csv(public / "sample_submission.csv", index=False)
+
+    test_labels.to_csv(private / "answers.csv", index=False)

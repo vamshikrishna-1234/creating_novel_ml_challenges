@@ -1,0 +1,196 @@
+Multi-Hop Evidence Chain Challenge
+Editor View
+Multi-Hop Evidence Chain Challenge
+Flag Problem
+Domain
+RAG
+Difficulty
+Medium
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+text
+feature-engineering
+small-data
+generative
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(5)
+Rubrics
+Your Submissions
+1. Overview
+
+This challenge evaluates a model’s ability to extract relevant information and derive answers directly from a pool of anonymized evidence sentences. The task focuses on whether a system can identify which pieces of text justify an answer when all contextual structure has been removed.
+
+The twists are participants must rely entirely on the semantic content of individual sentences rather than external knowledge or document organization. Because models often carry strong prior knowledge, the task intentionally creates situations where relying on that knowledge can lead to incorrect answers if it contradicts the provided evidence.
+
+The objective is to build a model that:
+
+Identifies the specific sentences within a shuffled pool that support the answer to a question
+Produces the correct answer using only the information contained in those sentences
+What participants receive:
+
+A flat, shuffled JSON pool of sentences identified only by anonymous codes (C001, C002, ...)
+A question that can be answered using information present within the pool
+A question type label describing the reasoning pattern involved
+Without article boundaries, titles, or document metadata, participants cannot rely on structural cues to locate evidence. Every sentence must be evaluated independently based on its meaning and relevance to the question.
+
+Instead of interpreting a structured passage, the context_pool functions as an unordered set of anonymous claims. Solving each problem requires selecting the correct evidence sentences and using them to derive the answer strictly from the provided text.
+
+The dataset contains 350 puzzles in total, split into:
+
+100 training puzzles
+250 test puzzles
+2. Evaluation
+
+Submissions are scored using an equal-weight combination of evidence identification accuracy and answer accuracy.
+
+Final Score:
+
+Final Score = 0.5 × Evidence Accuracy + 0.5 × Answer Accuracy
+Evidence Accuracy
+
+Participants submit a set of sentence IDs representing the evidence chain for each puzzle.
+
+Example:
+
+C004 C011 
+A prediction is correct only when the submitted ID set exactly matches the gold set. Order does not matter.
+
+Evidence Accuracy = (Exact-set-match predictions) / N 
+Answer Accuracy
+
+Participants submit a plain-text answer for each puzzle.
+
+Example:
+
+Panda
+Matching is case-insensitive and whitespace-normalized. An exact match after normalization counts as correct.
+
+Answer Accuracy = (Correct answer predictions) / N
+
+Reference Implementation:
+
+def normalize(s):
+    return s.strip().lower()
+
+evidence_accuracy = np.mean([
+    set(pred.split()) == set(gold.split())
+    for pred, gold in zip(pred_evidence_ids, true_evidence_ids)
+])
+
+answer_accuracy = np.mean([
+    normalize(pred) == normalize(gold)
+    for pred, gold in zip(pred_answers, true_answers)
+])
+
+final_score = 0.5 * evidence_accuracy + 0.5 * answer_accuracy
+Both components carry equal weight because locating the evidence chain and answering from it are independent failure modes — a model can answer correctly by luck while retrieving the wrong sentences, or retrieve the right sentences but still fail to extract the answer.
+
+To discourage leaderboard probing, the public leaderboard score is computed over a hidden private subset of 200 puzzles drawn randomly from the 250 test rows. Submissions must cover all 250 rows, but only the private subset counts toward the final ranking.
+
+3. Data Structure
+
+public/     
+  train.csv     
+  test.csv     
+  sample_submission.csv 
+train.csv
+Full puzzle features plus ground-truth labels. Use this to develop and validate your approach.
+
+test.csv
+Puzzle features only. Submit predictions for every row in this file.
+
+sample_submission.csv
+A correctly formatted placeholder submission illustrating the expected structure.
+
+4. Features
+
+Puzzle Representation
+
+question
+The question to be answered. Requires reasoning across at least two sentences in the pool.
+Example: Which film has the director who died earlier, Bewitched (1945 Film) or Woman and Wife?
+
+type
+The reasoning category of the question.
+Values: compositional, comparison, bridge_comparison, inference
+
+context_pool
+A JSON array of shuffled, anonymized context sentences. Each element contains an id field (the anonymous sentence code) and a text field (the sentence content). Article titles, sentence groupings, and original indices have been removed. Gold sentences are LLM-paraphrased; distractor sentences are structurally obfuscated.
+
+[   {"id": "C001", "text": "He directed several films during the silent era."},   {"id": "C002", "text": "Released in 1945, Bewitched was a psychological drama produced at MGM."},   {"id": "C003", "text": "She won multiple awards throughout her career."} ] 
+5. Target Variables (training only)
+
+evidence_ids
+Space-separated sentence IDs forming the gold reasoning chain.
+Example: C002 C007
+
+answer
+The ground-truth answer string.
+Example: Woman and Wife
+
+6. Submission Format
+
+Submit a CSV file with exactly three columns:
+
+id,evidence_ids,answer 
+abc123,C004 C011,Woman and Wife 
+def456,C007 C019,yes 
+ghi789,C002,Charles Chaplin 
+Requirements:
+
+Exactly 250 rows matching the test set
+
+Required column headers: id, evidence_ids, answer
+
+evidence_ids must contain only valid IDs present in that row's context_pool, separated by spaces
+
+answer must be a plain text string based on context_pool
+
+For questions asking yes or no, the answer must be exactly "yes" or "no"
+For questions asking for ways or actions, answers must be direct action verbs or concise action phrases like "sleep"
+Date answers must use the format M/D/YYYY like "1/28/1984" with no leading zeros
+For other answers not covered above, use exactly as how its referred to in the context_pool evidence like "Mc Speed"
+Submissions not matching this format will be automatically rejected
+
+Author’s Initial Rubric
+5 criteria
+0 items
+·
+0 contributors
+·
+Draft
+Retrieve a Minimal Multi-Hop Evidence Chain
+
+A strong solution identifies the exact set of sentences required to justify the answer, not merely a set of vaguely related sentences. Since evidence accuracy requires an exact set match, good agents retrieve only the minimal reasoning chain necessary for the answer.
+
+CODE QUALITY
+REQUIRED
+Construct Cross-Sentence Reasoning Chains
+
+Many puzzles require multi-hop inference, where one sentence introduces an entity and another provides a property or comparison needed to answer the question. Strong solutions explicitly connect these intermediate steps (e.g., entity → attribute → comparison). Weak systems treat each sentence independently and fail to assemble a coherent reasoning path.
+
+DATA HANDLING
+RECOMMENDED
+Jointly Optimize Evidence Retrieval and Answer Extraction
+
+The evaluation score equally weights evidence accuracy (0.5) and answer accuracy (0.5). Strong approaches explicitly optimize both components, ensuring that retrieved sentences directly support answer derivation.
+
+TRAINING
+RECOMMENDED
+Maintain Robustness Against Distractor Sentences
+
+The context pool intentionally includes structurally similar distractor sentences that may appear relevant but do not contribute to the reasoning chain. Effective agents evaluate logical consistency between sentences rather than relying on surface similarity.
+
+MODELING
+REQUIRED
+Generalize Reasoning Beyond Training Patterns
+
+The test puzzles may contain different entity relationships, paraphrase structures, or reasoning paths than those observed during training.
+
+TRAINING
+RECOMMENDED

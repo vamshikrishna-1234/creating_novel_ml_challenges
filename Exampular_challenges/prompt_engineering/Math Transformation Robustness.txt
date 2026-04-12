@@ -1,0 +1,121 @@
+Math Transformation Robustness (Numeric Answers)
+Overview
+Task objective: for each id in test.csv, predict the correct answer to the shown math problem.
+
+The target is always a single token in the submission:
+
+a numeric value for direct-response rows, or
+an option index (1, 2, 3, 4) for MCQ rows.
+This challenge is designed for training practical math solvers (model-only, tool-using, or agentic systems) that generalize under transformation, not systems that rely on surface memorization. Many modern LLM/NN math systems perform well on familiar benchmark phrasing but degrade when the same underlying reasoning is restated with different wording, symbol bindings, or numeric forms. To target this, the Challenge combines two controlled transformations of contest-style math problems:
+
+rephrased questions (same underlying math, different wording)
+perturbed questions (changed numbers, often changed answer)
+During dataset preparation, transformed text is additionally postprocessed to reduce direct source lookup leakage in the public files. Beyond wording changes, the pipeline applies variable renaming, aggressive numeric expression rewriting, prompt-style rendering, and controlled MCQ conversion. The core requirement remains generalization under transformation, not recall of memorized forms.
+
+Evaluation
+Submissions are scored per row:
+
+Correct answer: +3
+Wrong answer: -1
+EMPTY: 0
+Total score is the sum across all test rows (higher is better).
+
+def evaluate_one(pred, truth):  
+    if pred == "EMPTY":  
+        return 0  
+    if is_correct(pred, truth):  
+        return 3  
+    return -1  
+Matching behavior in the grader:
+
+Numeric predictions are matched numerically (for example, 3 and 3.0 are equal).
+MCQ rows are graded by matching the correct option index (1 to 4).
+Dataset
+Prepared files are in dataset/public/ (plus private labels in dataset/private/).
+
+File summary
+File	Rows	Description
+train.csv	129	Training rows using original-form prompts with numeric original_answer targets
+test.csv	252	Evaluation rows with transformed prompts; ground-truth answers are not included
+sample_submission.csv	252	Submission template aligned to test.csv IDs
+Columns
+train.csv
+
+Column	Type	Description
+id	int	Train row identifier (public)
+original_problem	str	Original-form math problem text after postprocess rewrites
+original_answer	str	Numeric target for the original-form problem
+level	str	Difficulty label (Level 1 to Level 5)
+test.csv
+
+Column	Type	Description
+id	int	Test row identifier used for submission matching
+problem	str	Transformed problem text (may be direct response or 4-choice MCQ style)
+level	str	Difficulty label (Level 1 to Level 5)
+sample_submission.csv
+
+Column	Type	Description
+id	int	Test row identifier copied from test.csv
+answer	str	Your prediction: numeric value, MCQ index (1-4), or EMPTY
+Example (No Answer Shown)
+Original problem:
+If x + 7 = 19, determine x.
+
+Perturbed transformed version:
+If x + 11 = 23, determine x.
+
+Rephrased transformed version:
+Find the value of x such that x plus seven equals nineteen.
+
+Submission
+Submit a CSV with exactly these columns:
+
+Column	Type	Description
+id	int	Row identifier from test.csv
+answer	str	Predicted numeric answer, MCQ option index (1-4), or EMPTY
+Example:
+
+id,answer  
+2000123,3  
+2000451,2  
+2000788,17.5  
+2000799,EMPTY  
+Requirements:
+
+Must contain exactly 252 rows (one per test row in the current prepared set)
+Must include a header row
+Must contain exactly the columns id and answer
+id values must match those in test.csv exactly (order does not matter)
+No duplicate id values
+ 
+
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+113
+Top Score
+725.000
+Created
+Feb 27, 2026
+
+Agent Evaluations

@@ -1,0 +1,138 @@
+1. Problem Overview
+This competition presents a unified cardiopulmonary diagnosis task based on mixed acoustic recordings images.
+
+Participants receive 224×224 log Mel spectrogram images. Each recording contains simultaneously captured heart and lung sounds, with and without signal separation.
+
+The objective is to build model(s) that generate two independent clinical predictions from a single mixed spectrogram:
+
+Heart condition classification (10 classes)
+Lung condition classification (6 classes)
+Both predictions must be inferred directly from the same mixed image. At test time, only mixed spectrograms are provided. No isolated heart or lung signals are available during evaluation.
+
+Some heart–lung combinations in the training split are intentionally low-shot. A subset of category pairs contains only a single mixed training example. This introduces a controlled few-shot setting within the multi-task framework and increases the difficulty of robust generalization.
+
+This creates an intentional training–inference asymmetry designed to promote representation disentanglement and multi-task learning approaches.
+
+2. Dataset Summary
+130 total mixed recording images (63 train, 67 test)
+63 independent heart and lung recording images
+10 heart condition classes
+6 lung condition classes
+The training split includes isolated heart-only and lung-only spectrograms. These auxiliary signals are provided strictly for training and are not part of the test set.
+
+For every heart–lung combination that appears in the test set, at least one corresponding mixed recording is available in the training set as a reference example. This ensures that no test pair is entirely unseen, while still requiring generalization beyond a small number of observed examples.
+
+3. Spectogram Construction
+Rendering Details
+Inferno colormap
+Saved as 224×224 PNG
+4. Task Definition
+For each mixed spectrogram image, predict:
+
+heart_pred: one of 10 heart condition classes
+lung_pred: one of 6 lung condition classes
+Each prediction head outputs exactly one class.
+
+All predictions must be derived directly from the mixed spectrogram.
+
+5. Evaluation Metric: CLAMP Score
+Performance is measured using the CLAMP Score (Cardio-Lung Aggregate Multi-Pathology):
+
+CLAMP = 0.3 × MacroF1_heart
+   + 0.3 × MacroF1_lung
+   + 0.4 × Exact Match Ratio
+Heart Macro-F1
+Macro-averaged F1 across all 10 heart classes, with equal weight per class.
+Lung Macro-F1
+Macro-averaged F1 across all 6 lung classes, with equal weight per class.
+Exact Match Ratio (EMR)
+EMR measures the proportion of samples where both predictions are correct simultaneously:
+
+EMR = (1 / N) × Σ 1(heart_pred_i = heart_label_i AND lung_pred_i = lung_label_i)
+The EMR component introduces cross-task dependence into the final score.
+
+6. Directory Structure
+public/
+  train.csv
+  test.csv
+  sample_submission.csv
+  images/
+    train/
+      mixed/
+      heart/
+      lung/
+    test/
+      mixed/
+train.csv contains:
+id
+gender_flag
+heart_label
+lung_label
+heart_image_id
+lung_image_id
+mixed_image_id
+test.csv contains:
+id
+flag
+mixed_image_id
+7. Target Classes
+Heart (10 classes)
+Normal Rhythm
+Murmur in Late Diastole
+Murmur in Mid Systole
+Murmur in Late Systole
+Irregular Rhythm
+Fourth Heart Sound
+Murmur in Early Systole
+Third Heart Sound
+Abnormally Fast Rhythm
+Conduction Block
+Lung (6 classes)
+Normal Rhythm
+High-Pitched Sound
+Fine Breath Sound
+Low-Pitched Sound
+Friction Rub Sound
+Coarse Breath Sound
+8. Submission Format
+Submit a CSV file with exactly three columns:
+
+id,heart_pred,lung_pred
+T0001,Normal Rhythm,Normal Rhythm
+T0002,Normal Rhythm,Normal Rhythm
+T0003,Normal Rhythm,Normal Rhythm
+Requirements
+Exactly 67 prediction rows excluding header
+Columns must be: id, heart_pred, lung_pred
+Class strings must match exactly (case-sensitive)
+Each ID must appear exactly once
+Submissions that violate format or class constraints will be rejected.
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+70
+Top Score
+0.954
+Created
+Feb 19, 2026
+
+Agent Evaluations

@@ -1,0 +1,74 @@
+================================================================================
+LEARNINGS — Common Mistakes to Avoid
+================================================================================
+
+1. DATASET TITLE MUST BE IN TITLE CASE
+   - Every word capitalized (including prepositions like "With", "From", "Of").
+   - Example: "Synthetic Contextual Item Selection Logs With Preference Dynamics"
+   - BAD:    "Synthetic Contextual Item Selection Logs with Preference Dynamics"
+   - The validator rejects lowercase words in the title.
+
+2. FEATURES TABLE MUST LIST EVERY COLUMN — COUNTS MUST MATCH
+   - If File Structure says "N columns", the Features table must document
+     exactly N columns. No more, no less.
+   - Do NOT count columns that prepare.py adds later — only count what
+     exists in the raw uploaded files.
+   - Before writing the description, run a quick check:
+       columns in CSV  ==  rows in Features table  ==  number stated in File Structure
+
+3. DOMAIN CLASSIFICATION — KNOW WHAT THE PLATFORM ACCEPTS
+   - Enabled domains: NLP, CV, Object Detection, Recommendation, Seq2Seq,
+     Prompt Engineering, RAG, Fine-Tuning, LLM Evaluation.
+   - "Regression" is NOT currently enabled. Tabular numeric-in → continuous
+     numeric-out will be auto-classified as Regression and rejected.
+   - Rewriting the description does NOT fool the classifier — the data/
+     submission structure determines classification.
+   - Recommendation requires discrete item ID output (not continuous rating).
+
+4. NOVELTY SCORE — AIM FOR 4+/5
+   - Standard tabular tasks (predict price, classify sentiment) score low.
+   - Add twists: unusual metric, multi-step, adversarial obfuscation,
+     context-dependent regime switching, etc.
+   - The novelty checker searches Kaggle, LeetCode, HackerRank, and
+     academic literature for similar problems.
+
+5. AGENT SCORES SHOULD NOT SATURATE
+   - If all agents score identically, reviewers will flag it.
+   - Design the challenge so there is a spread: random baseline < naive
+     baseline < good model < theoretical max.
+   - Leave room for humans to beat agents (~agent should not exceed 80%
+     of theoretical max).
+
+6. RUBRICS — MINIMAL, REQUIRED-ONLY, NO STRATEGY HINTS
+   - 5 rubrics minimum. Majority REQUIRED or RECOMMENDED.
+   - Do NOT give modeling hints that help the agent score better.
+   - Do NOT make rubrics too vague ("explores data well") or tool-specific
+     ("uses pandas profiling").
+   - REQUIRED = solution crashes/broken without it.
+   - RECOMMENDED = guides toward optimality, task-specific.
+   - UNIVERSAL = generic best practice (use sparingly, max 1).
+
+7. GRADE.PY — DEFENSIVE CODING
+   - Wrap entire function in try/except → return 0.0 on any error.
+   - merge(how='left') not 'inner'.
+   - Check: unique IDs in submission, unique IDs in answers,
+     set(sub IDs) == set(ans IDs), len(sub) == len(ans).
+   - No exception should escape — malformed submission → 0.0.
+
+8. PREPARE.PY — DETERMINISM + ANONYMIZATION
+   - Must be fully deterministic (fixed seeds everywhere).
+   - Anonymize/shuffle column names so raw feature semantics are hidden.
+   - Use Path() casting on all path arguments.
+   - Zero train/test overlap (verify with set intersection).
+
+9. "CLASSIFICATION" IS ALSO NOT AN ENABLED DOMAIN
+   - Enabled domains: NLP, CV, Object Detection, Recommendation, Seq2Seq,
+     Prompt Engineering, RAG, Fine-Tuning, LLM Evaluation.
+   - "Classification" (generic) is NOT enabled, same as "Regression."
+   - If the data has both text + numeric features → integer label, the
+     classifier may see it as generic "Classification" rather than NLP.
+   - FIX: Remove numeric columns from the PUBLIC data so the input is
+     text-only → label. Pure text classification → NLP.
+   - This also increases difficulty (removes numeric shortcut baselines).
+
+================================================================================

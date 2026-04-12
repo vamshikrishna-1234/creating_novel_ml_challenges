@@ -1,0 +1,128 @@
+Delayed Feedback Recommendation Challenge
+Modern recommendation systems often operate in environments where feedback from users does not appear immediately. For example, a user might interact with content today but only provide meaningful feedback hours or days later. This creates a challenging learning problem where models must make predictions despite sparse data, delayed signals, and evolving user behavior.
+
+In this challenge, you are given a synthetic dataset that simulates a recommendation platform. Users interact with items over time, and the system observes whether the interaction eventually results in a positive outcome. However, feedback is delayed and partially observed, making the problem more realistic than standard recommendation datasets.
+
+Your goal is to predict whether a given interaction will eventually result in a positive reward.
+
+Problem Overview
+The dataset contains user-item interaction logs generated from a simulated recommendation system. Each interaction represents a moment when a user was exposed to an item.
+
+For historical interactions, the system may observe whether the interaction resulted in a positive outcome. For future interactions, that outcome is hidden, and participants must predict the probability that the interaction will result in a positive reward.
+
+This problem resembles real-world systems such as:
+
+• video recommendations
+• content feeds
+• online advertising
+• e-commerce product recommendations
+
+where user satisfaction is often observed after a delay.
+
+Task
+For each row in test_interactions.csv, predict:
+
+The probability that the interaction will eventually produce a positive reward.
+
+Your submission should provide a score between 0 and 1 representing this probability.
+
+Files Provided
+users.csv
+Contains metadata describing users in the system.
+
+Columns include:
+
+• user_id – hashed identifier for each user
+• age – simulated user age
+• region – encoded geographic region
+• device – encoded device type
+• activity_level – numerical indicator of user activity
+
+items.csv
+Contains metadata describing items that can be recommended.
+
+Columns include:
+
+• item_id – hashed identifier for each item
+• category – encoded item category
+• complexity – numerical feature representing item complexity
+• novelty – numerical feature representing how new or unusual the item is
+• quality – numerical indicator of intrinsic item quality
+
+train_interactions.csv
+Historical interaction data where outcomes are known.
+
+Columns include:
+
+• user_id – hashed user identifier
+• item_id – hashed item identifier
+• interaction_time – timestamp of the interaction
+• reward_time – time when feedback was observed (may be missing)
+• observed_reward – observed outcome (1 = positive reward, 0 = no reward)
+
+test_interactions.csv
+Future interactions where the outcome is hidden.
+
+Columns include:
+
+• row_id – unique identifier for the interaction
+• user_id – hashed user identifier
+• item_id – hashed item identifier
+• interaction_time – timestamp of the interaction
+
+Participants must predict the probability of reward for each row.
+
+sample_submission.csv
+Example submission file showing the expected format.
+
+Columns include:
+
+• row_id – identifier of the interaction
+• score – predicted probability of reward
+
+Example:
+
+row_id,score
+a1b2c3...,0.72
+d4e5f6...,0.14
+
+Evaluation
+Submissions are evaluated using ROC-AUC (Area Under the Receiver Operating Characteristic Curve).
+
+This metric measures how well your model ranks interactions that eventually receive positive rewards above those that do not.
+
+A score of:
+
+• 0.5 corresponds to random predictions
+• 1.0 corresponds to perfect ranking
+
+Higher scores indicate better performance.
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+107
+Top Score
+0.531
+Created
+Mar 15, 2026
+
+Agent Evaluations

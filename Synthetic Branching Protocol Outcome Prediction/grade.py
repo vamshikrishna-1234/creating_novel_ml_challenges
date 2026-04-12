@@ -1,0 +1,60 @@
+"""
+Grading script: Average per-field exact-match accuracy for
+Synthetic Branching Protocol Outcome Prediction.
+
+Compares predicted outcome fields against ground truth.
+Score = mean of per-field exact-match accuracies across 4 fields.
+
+Score range: [0.0, 1.0] where HIGHER is better.
+"""
+
+import pandas as pd
+import numpy as np
+
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    try:
+        FIELDS = ["terminal_state", "primary_product", "byproduct_class", "process_status"]
+
+        if "id" not in submission.columns:
+            return 0.0
+        for f in FIELDS:
+            if f not in submission.columns:
+                return 0.0
+
+        if submission["id"].duplicated().any():
+            return 0.0
+        if answers["id"].duplicated().any():
+            return 0.0
+
+        if set(submission["id"]) != set(answers["id"]) or len(submission) != len(answers):
+            return 0.0
+
+        merged = answers.merge(
+            submission, on="id", how="left", suffixes=("_true", "_pred")
+        )
+
+        if len(merged) == 0:
+            return 0.0
+
+        field_accuracies = []
+        for f in FIELDS:
+            col_true = f"{f}_true" if f"{f}_true" in merged.columns else f
+            col_pred = f"{f}_pred" if f"{f}_pred" in merged.columns else f
+
+            if merged[col_pred].isna().any():
+                field_accuracies.append(0.0)
+                continue
+
+            true_vals = merged[col_true].astype(str).str.strip()
+            pred_vals = merged[col_pred].astype(str).str.strip()
+            acc = (true_vals == pred_vals).mean()
+            field_accuracies.append(float(acc))
+
+        avg_accuracy = float(np.mean(field_accuracies))
+        if np.isnan(avg_accuracy):
+            return 0.0
+        return avg_accuracy
+
+    except Exception:
+        return 0.0

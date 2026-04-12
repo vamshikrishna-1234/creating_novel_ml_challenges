@@ -1,0 +1,41 @@
+Idea: "Fictional Language Grammar Induction Challenge"
+
+Domain: NLP
+
+Core concept: You're given a corpus of sentences in a completely fictional language (invented tokens, no English) along with their English translations. The fictional language has consistent but non-obvious grammar rules (word order, agreement, tense markers, case markers). At test time, you're given new fictional-language sentences and must produce the correct English translation.
+
+Why I think this is strong but also risky: The evaluation would need BLEU or exact match, and BLEU is fuzzy. Let me think of something with a cleaner evaluation...
+
+Actually, let me pivot to something cleaner:
+
+Idea: "Causal Chain Intervention Challenge"
+
+Domain: NLP (could also be Seq2Seq)
+
+Core concept:
+
+Each row contains a fictional causal scenario described in 4-8 sentences: a chain of events (A caused B, B led to C, C triggered D, etc.)
+Each row also contains an intervention statement: "What if event X had not occurred?"
+The model must produce a structured output with 3 fields:
+AFFECTED_EVENTS: comma-separated list of event IDs that would NOT have occurred if X hadn't happened (downstream effects)
+UNAFFECTED_EVENTS: comma-separated list of event IDs that would still occur (independent or upstream)
+OUTCOME_CHANGE: one of prevented, reduced, unchanged, worsened — how the final outcome changes
+Why novel (4+):
+
+Counterfactual/causal reasoning from text is extremely rare in benchmarks
+Requires building a causal DAG from natural language, then doing graph surgery (removing a node and propagating)
+Structured multi-field output with exact match scoring
+Near-miss difficulty: some events have multiple causes (so removing one doesn't prevent them), some chains have hidden confounders described in the text
+Why hard for agents:
+
+Can't just pattern-match; must actually trace causal chains
+Distractors: some events are described as temporally following X but not caused by X
+Confounders: some events have alternative causes mentioned subtly
+The causal graph is never given explicitly — must be inferred from language like "caused", "led to", "triggered", "resulted in", "independently", "coincidentally"
+Data type: Fully synthetic, deterministic ground truth from generated causal DAGs
+
+Metric: Per-field exact match (same as our other challenges), score in [0, 1]
+
+Human improvement scope: Humans excel at causal reasoning, can trace chains carefully, understand subtle distinctions between correlation and causation in text.
+
+What do you think? Want me to build this one?

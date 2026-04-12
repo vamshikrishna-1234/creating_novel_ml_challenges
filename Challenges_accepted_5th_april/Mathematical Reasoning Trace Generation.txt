@@ -1,0 +1,172 @@
+Mathematical Reasoning Trace Generation
+Flag Problem
+Domain
+Fine-Tuning
+Difficulty
+Medium
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+text
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(2)
+Rubrics
+Your Submissions
+1. Challenge Overview & Objective
+I. Real World Context
+Mathematical reasoning represents the absolute frontier of artificial intelligence capability. Providing a numerical answer to a problem is trivial when a model has memorized the training data; producing a mathematically rigorous, logically progressive derivation path, the "how" and "why" behind the answer requires genuine cognitive synthesis. Large models achieve this through massive scaling, but distilling this capability into constrained networks is the definitive target of modern AI research.
+
+II. Objective
+The goal is to generate flawless, multi-step mathematical reasoning traces that perfectly derive a given answer from a provided math problem. Participants must reconstruct the symbolic sequence (which heavily utilizes LaTeX syntax and algebraic reasoning) from base principles without resorting to rote guessing.
+
+III. The Training Mandate: AIMO Distillation
+PRIORITY FOCUS: This is a Model Training and Distillation Competition.
+Evaluation will only proceed for strictly fine-tuned open-weight networks.
+
+Model Constraint: You must fine-tune an open-weights LLM of 8 Billion parameters or fewer (e.g., Llama-3-8B, Mistral-7B).
+Training Modality: We suggest Supervised Fine-Tuning (SFT) over curated reasoning traces or Reinforcement Learning (PPO/GRPO) to instill verifiable logical derivation.
+2. Context Complexity
+The challenge demands reasoning against several adversarial factors:
+
+Symbolic Trace Degeneration: When reasoning algebraically, if step 3 of a 10-step derivation contains a mathematical hallucination (a dropped sign, a flawed partial fraction decomposition), the derivation degrades immediately. The model must learn self-correction or highly accurate forward passes.
+OOD Difficulty Generalization: A model trained to solve basic algebraic identities will fail to generate proofs regarding combinatorics or number theory. The test evaluation performs stratified splitting across advanced olympiad-tier math.
+3. Feature Schema & Structure
+File Structure
+| File Name | Rows | Columns | Description |
+| :--- | :--- | :--- | :--- |
+| `train.csv` | ~4,000 | 5 | Complete training set featuring problem statement, final answer, and the ground-truth reasoning trace. |
+| `test.csv` | ~1,000 | 4 | Evaluation set featuring only the problem statement and final answer. |
+| `answers.csv` | ~1,000 | 3 | Ground truth derivation traces and respective structural evaluation weights (Private). |
+Formal Feature Specification
+| Column Name | Role | Data Type | Description |
+| :--- | :--- | :--- | :--- |
+| `problem_id` | Metadata | String | A 12-character cryptographic hash securing the data index. |
+| `problem_statement` | Input | String | The multi-modal (Text/LaTeX) problem requiring a procedural mathematical solution. |
+| `final_answer` | Input | String | The terminal solution strictly validating the problem. |
+| `difficulty_tier` | Metadata | String | The difficulty bracket of the problem (`easy`, `medium`, `hard`). |
+| `reasoning_trace` | Target | String | **Primary Target:** The step-by-step rigorous derivation path with algebraic notation. |
+| `difficulty_weight` | Metadata| Float | (Private) Multiplicative scoring weight directly scaling problem severity (1.0x to 3.0x). |
+4. Evaluation Metric: Multimodal Reasoning Trace Integrity (MRTI)
+Standard text metrics treating mathematical symbols like prose drastically misrepresent logical accuracy. This grading pipeline acts as a Symbolic Proxy, checking both the semantic structure and the mathematical entity recall.
+
+I. The Formula
+Overall score aggregates as a difficulty-weighted mean of the sample scores:
+
+Overall Score
+=
+∑
+(
+w
+i
+⋅
+TraceScore
+i
+)
+∑
+w
+i
+Overall Score= 
+∑w 
+i
+​
+ 
+∑(w 
+i
+​
+ ⋅TraceScore 
+i
+​
+ )
+​
+ 
+
+Where the TraceScore for each generated path leverages four independent components:
+
+TraceScore
+=
+0.20
+×
+ROUGE-L
+F
+1
++
+0.40
+×
+MathEntityF1
++
+0.20
+×
+chrF
++
+0.20
+×
+BLEU-2
+TraceScore=0.20×ROUGE-L 
+F1
+​
+ +0.40×MathEntityF1+0.20×chrF+0.20×BLEU-2
+
+II. The Adversarial "Math Entity F1" Check
+MathEntityF1 (40%): Unlike standard text evaluators, this specific pipeline uses regular expressions and syntax parsing to extract numeric values, logical operators, and LaTeX macros (e.g., \frac, \int, \sum) from the ground-truth. To prevent "spam attacks" where models hallucinate massive dictionary payloads of numbers to artificially inflate their score, this metric strictly enforces Precision alongside Recall. It operates as the F1 harmonic mean of your perfectly recovered mathematical algorithmic tokens, heavily penalizing unneeded symbols masking as derivations.
+
+5. Submission Format
+Submission Specification
+Submit a standard CSV file mapping problem_id to the generated reasoning_trace.
+
+| Column | Data Type | Description |
+| :--- | :--- | :--- |
+| `problem_id` | String | Must perfectly mirror the identifiers found in `test.csv`. |
+| `reasoning_trace` | String | The complete, un-truncated, LaTeX-compatible text output from your constrained model. |
+Recommended Export Snippet (Python)
+Avoid breaking CSV schemas by ensuring quotes and multiline sequences are perfectly handled by standard pandas DataFrame serialization:
+
+import pandas as pd  
+  
+# Assume 'eval_df' loaded from test.csv  
+# Assume 'generated_traces' is a list of your model outputs  
+submission = pd.DataFrame({  
+    'problem_id': eval_df['problem_id'],  
+    'reasoning_trace': generated_traces  
+})  
+  
+# Final validation constraint  
+submission['problem_id'] = submission['problem_id'].astype(str)  
+submission['reasoning_trace'] = submission['reasoning_trace'].astype(str)  
+  
+submission.to_csv('submission.csv', index=False)
+ 
+ Author’s Initial Rubric
+4 criteria
+0 items
+·
+0 contributors
+·
+Draft
+The fine-tuned architecture is reccommended have 8 Billion parameters or fewer (e.g., Llama-3-8B).
+
+This is an AIMO-style distillation challenge. Scaling beyond 8B circumvents the intent of algorithmic efficiency optimization.
+
+MODELING
+RECOMMENDED
+Must strictly utilize an open-weights foundation model, prohibiting closed-source API calls for inference.
+
+To push the frontier, participants must actually train models rather than prompt engineering existing proprietary solutions.
+
+MODELING
+REQUIRED
+The agent must configure the model to output granular reasoning traces, effectively utilizing SFT or RL paradigms (like GRPO).
+
+Standard autoregressive generation often fails at math; modern distillation requires explicit reasoning instantiation.
+
+TRAINING
+RECOMMENDED
+The fine-tuning strategy accurately teaches the model to synthesize specific mathematical LaTeX macros (\int, \frac) without syntactic degradation.
+
+The MRTI evaluation metric aggressively scans for exact entity recall. A model failing syntax generation loses significant composite weighting.
+
+CODE QUALITY
+RECOMMENDED

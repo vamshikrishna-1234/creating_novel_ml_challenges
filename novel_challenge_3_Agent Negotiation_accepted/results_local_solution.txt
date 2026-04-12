@@ -1,0 +1,76 @@
+Extracting structured features...
+Extracting DistilBERT embeddings (this may take a few minutes)...
+Using device: cuda
+/usr/local/lib/python3.12/dist-packages/huggingface_hub/utils/_auth.py:94: UserWarning: 
+The secret `HF_TOKEN` does not exist in your Colab secrets.
+To authenticate with the Hugging Face Hub, create a token in your settings tab (https://huggingface.co/settings/tokens), set it as secret in your Google Colab and restart your session.
+You will be able to reuse this secret in all of your notebooks.
+Please note that authentication is recommended but still optional to access public models or datasets.
+  warnings.warn(
+tokenizer_config.json: 100%
+ 48.0/48.0 [00:00<00:00, 5.98kB/s]
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+vocab.txt: 
+ 232k/? [00:00<00:00, 3.00MB/s]
+tokenizer.json: 
+ 466k/? [00:00<00:00, 3.52MB/s]
+config.json: 100%
+ 483/483 [00:00<00:00, 63.7kB/s]
+model.safetensors: 100%
+ 268M/268M [00:01<00:00, 305MB/s]
+Loading weights: 100%
+ 100/100 [00:00<00:00, 917.80it/s, Materializing param=transformer.layer.5.sa_layer_norm.weight]
+DistilBertModel LOAD REPORT from: distilbert-base-uncased
+Key                     | Status     |  | 
+------------------------+------------+--+-
+vocab_transform.bias    | UNEXPECTED |  | 
+vocab_projector.bias    | UNEXPECTED |  | 
+vocab_layer_norm.weight | UNEXPECTED |  | 
+vocab_layer_norm.bias   | UNEXPECTED |  | 
+vocab_transform.weight  | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED	:can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+  Embedded 64/24000
+  Embedded 1344/24000
+  Embedded 2624/24000
+  Embedded 3904/24000
+  Embedded 5184/24000
+  Embedded 6464/24000
+  Embedded 7744/24000
+  Embedded 9024/24000
+  Embedded 10304/24000
+  Embedded 11584/24000
+  Embedded 12864/24000
+  Embedded 14144/24000
+  Embedded 15424/24000
+  Embedded 16704/24000
+  Embedded 17984/24000
+  Embedded 19264/24000
+  Embedded 20544/24000
+  Embedded 21824/24000
+  Embedded 23104/24000
+Embedding shape: (24000, 768)
+
+Running 5-fold CV...
+/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+Fold 1/5: weighted macro F1 = 0.7538
+/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+Fold 2/5: weighted macro F1 = 0.7558
+/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+Fold 3/5: weighted macro F1 = 0.7435
+/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(
+Fold 4/5: weighted macro F1 = 0.7590
+Fold 5/5: weighted macro F1 = 0.7544
+
+CV Summary: 0.7533 +/- 0.0052
+Per-fold: ['0.7538', '0.7558', '0.7435', '0.7590', '0.7544']
+
+Target: beat 0.816 (agent baseline)
+/usr/local/lib/python3.12/dist-packages/sklearn/utils/validation.py:2739: UserWarning: X does not have valid feature names, but LGBMClassifier was fitted with feature names
+  warnings.warn(

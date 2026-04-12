@@ -1,0 +1,31 @@
+import pandas as pd
+import numpy as np
+
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    """
+    Score a submission against ground truth answers.
+
+    Args:
+        submission: The agent's predictions (loaded from submission.csv)
+        answers: Ground truth labels (loaded from private/answers.csv)
+
+    Returns:
+        A float score between 0.0 and 1.0. Higher is better.
+    """
+    ans_cols = answers[["id", "output"]].copy()
+    sub_cols = submission[["id", "output"]].copy()
+    merged = ans_cols.merge(sub_cols, on="id", suffixes=("_true", "_pred"))
+
+    if len(merged) == 0:
+        raise ValueError("No common IDs between submission and answers")
+
+    if merged["output_pred"].isna().any():
+        raise ValueError("Submission has missing predictions for some IDs")
+
+    accuracy = (
+        merged["output_true"].astype(str).str.strip()
+        == merged["output_pred"].astype(str).str.strip()
+    ).mean()
+
+    return float(accuracy)

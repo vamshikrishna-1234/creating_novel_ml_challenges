@@ -1,0 +1,94 @@
+Overview
+Human conversations can contain subtle psychological manipulation, tactics that exploit emotional vulnerabilities to influence behavior. Understanding how manipulation targets respond to these tactics is critical for building AI safety systems, training conversational agents to recognize distress, and developing support tools for vulnerable individuals.
+
+This work introduces a behavioral response modeling task under adversarial psychological pressure, where models must infer latent cognitive-emotional states and generate responses consistent with those states : given a multi-turn conversation between Speaker A (the manipulator) and Speaker B (the target) up to a pivot point, predict what Speaker B says next.
+
+Context Complexity
+Speaker B's responses are shaped by the specific manipulation technique being used against them. Under gaslighting, B expresses confusion and self-doubt ("Maybe I was wrong"). Under guilt-tripping, B becomes apologetic ("I'm sorry, I didn't mean to..."). Under love bombing, B shows cautious uncertainty ("We've only been together a month"). Under neutral/healthy exchanges, B responds naturally.
+
+We introduce a cross-relational generalization benchmark, where manipulation strategies remain constant but are expressed across unseen social dynamics: The same manipulation techniques appear in both, but targets respond differently in, requiring models to learn generalizable response patterns rather than memorizing context-specific phrases.
+
+Task Description
+Given a conversation context (all messages from both speakers up to but not including Speaker B's final reply), generate Speaker B's last response.
+
+This is a sequence-to-sequence (Seq2Seq) text generation problem. Responses are short (average ~5 words, ~24 characters).
+
+Dataset
+Dataset Files
+- **`train.csv`** — Training pairs: conversation context + Speaker B's target response
+- **`test.csv`** — Test pairs: conversation context only (response withheld)
+- **`answers.csv`** — *(private)* Ground truth responses for the test set
+- **`sample_submission.csv`** — Submission template with placeholder responses
+Features
+| Column | Data Type | Description |
+|---|---|---|
+| `conv_id` | String | Unique conversation identifier (e.g., `conv_00042`) |
+| `context_text` | String | Conversation history: `A: text [SEP] B: text [SEP] A: text ...` (all messages before B's final reply) |
+| `num_context_messages` | Integer | Number of messages in the context |
+| `intensity` | Float (0-1) | Manipulation intensity score (0.0 for neutral conversations) |
+| `target_response` | String | *(TRAIN ONLY)* Speaker B's actual next response |
+Examples
+Input (context_text):
+
+A: You're being way too sensitive about this. [SEP] B: I just feel like you dismissed me in front of everyone. [SEP] A: No one else noticed. It's all in your head.  
+Expected Output (target_response):
+
+Uh, maybe I was wrong  
+Input (context_text):
+
+A: I don't tell just anyone this, but I really value your opinion. [SEP] B: What do you mean? [SEP] A: Most people wouldn't understand. But you? You get it. [SEP] B: Well, i'm not sure I do. [SEP] A: Trust me, you're more capable than you realize. That's why I'm coming to you.  
+Expected Output (target_response):
+
+I don't know what to say...  
+Submission Format
+Submit a CSV file with exactly two columns:
+
+| Column | Data Type | Description |
+|---|---|---|
+| `conv_id` | String | Must match identifiers in `test.csv` |
+| `target_response` | String | Predicted text of Speaker B's next response |
+Example Submission
+conv_id,target_response  
+conv_00000,I'm not sure about that  
+conv_00001,Can we talk about this later?  
+conv_00002,That's really kind of you  
+Evaluation
+Metric: Composite Score (chrF + ROUGE-L + BLEU-2)
+Submissions are evaluated using a weighted composite of three complementary text similarity metrics:
+
+Score
+=
+0.4
+×
+chrF
++
+0.3
+×
+ROUGE-L
+F
+1
++
+0.3
+×
+BLEU-2
+Score=0.4×chrF+0.3×ROUGE-L 
+F1
+​
+ +0.3×BLEU-2
+| Component | Weight | What It Measures |
+|---|---|---|
+| **chrF** (character n-gram F-score, n=1-6, β=2) | 0.40 | Character-level overlap — robust on short texts, captures partial word matches |
+| **ROUGE-L F1** (longest common subsequence) | 0.30 | Word-level structural overlap and ordering |
+| **BLEU-2** (bigram precision + brevity penalty) | 0.30 | Phrasing quality via bigram precision |
+Each metric is computed per-sample (comparing predicted vs. reference response), then averaged across the full test set. The weighted average produces the final score.
+
+Why a Composite?
+With responses averaging only ~5 words, no single metric is reliable:
+
+ROUGE-L alone over-rewards simple word overlap
+BLEU alone is noisy on very short texts
+chrF provides character-level robustness but misses word-order quality
+The composite balances these weaknesses across lexical (BLEU-2), structural (ROUGE-L), and sub-word (chrF) dimensions.
+
+Goal
+MAXIMIZE the Composite Score. Higher is better.

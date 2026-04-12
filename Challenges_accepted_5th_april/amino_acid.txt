@@ -1,0 +1,123 @@
+The Protein Oracle (Amino Acid Sequence Continuation)
+Flag Problem
+Domain
+Sequence To Sequence
+Difficulty
+Medium
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+text
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(0)
+Rubrics
+Your Submissions
+1. Challenge Overview & Objective
+I. Real World Context
+Proteins are the functional building blocks of life, and each protein's behavior is determined by its amino acid sequence. Predicting how a protein sequence continues from a given prefix requires understanding deep biochemical patterns: hydrophobic core packing, secondary structure propensities (alpha-helix vs beta-sheet), domain boundaries, and conserved functional motifs. Pre-trained text language models treat amino acid letters as English characters and produce biologically incoherent outputs because the 20-letter amino acid alphabet follows fundamentally different statistical rules than English.
+
+II. Objective
+You are given the first 50-75% of a human protein's amino acid sequence and must predict the exact next 20 residues in the sequence. Your model must learn the "grammar" of protein sequences from scratch: which amino acids tend to follow each other, how local secondary structures constrain residue choices, and how long-range patterns (like repeating motifs) influence downstream residue selection.
+
+III. The Training Mandate
+Model Constraint: You must train a sequence model from scratch under 50 Million total parameters.
+Pre-trained Weights Prohibition: Using pre-trained weights from any general-purpose language model or protein foundation model (e.g., ESM, ProtTrans, ProGen) is strictly prohibited. You must learn amino acid patterns natively from the training data.
+2. Dataset Structure
+The raw human proteome sequences have been processed into context/continuation pairs.
+
+How the pairs are constructed
+Each protein sequence is split at a random point between 50% and 75% of its length. The prefix becomes the context. The next 20 amino acid residues become the continuation that you must predict.
+
+train.csv
+| Column | Data Type | Description |
+|:---|:---|:---|
+| `seq_id` | String | Unique 12-character hash identifier for the protein. |
+| `context` | String | The first portion of the amino acid sequence (e.g., `MKGALGSPVAAAGAAM...`). Average ~200-300 residues. |
+| `continuation` | String | The next 20 amino acid residues in the protein sequence. This is the prediction target. |
+test.csv
+| Column | Data Type | Description |
+|:---|:---|:---|
+| `seq_id` | String | Unique identifier. |
+| `context` | String | Amino acid prefix. The `continuation` is withheld. |
+answers.csv (Private)
+Used exclusively by the automated grader.
+
+| Column | Data Type | Description |
+|:---|:---|:---|
+| `seq_id` | String | Matching identifier from `test.csv`. |
+| `continuation` | String | The true 20-residue continuation. |
+sample_submission.csv
+| Column | Data Type | Description |
+|:---|:---|:---|
+| `seq_id` | String | Matching identifier from `test.csv`. |
+| `continuation` | String | Placeholder prediction (default: `AAAAAAAAAAAAAAAAAAAA`). |
+3. Evaluation Metric: Per-Residue Accuracy
+Your submission is graded using per-residue positional accuracy: each of the 20 positions in your predicted continuation is compared character-by-character against the ground truth.
+
+Accuracy
+=
+Number of correct residues at correct positions
+Total positions across all samples
+Accuracy= 
+Total positions across all samples
+Number of correct residues at correct positions
+​
+ 
+
+If your prediction is shorter than 20 residues, the missing positions count as incorrect. The random baseline for this metric is approximately 5% (1 out of 20 possible amino acids per position).
+
+4. Submission Format
+| seq_id | continuation |
+| :--- | :--- |
+| `prot_a4b9c1` | `LGKSDFHWIERTQNMCVPAY` |
+| `prot_ff91a2` | `AAMVLLCFHTRSEQGNIKDW` |
+import pandas as pd  
+  
+submission = pd.DataFrame({  
+    'seq_id': test_df['seq_id'],  
+    'continuation': generated_continuations  
+})  
+  
+submission.to_csv('submission.csv', index=False)  
+ 
+ Author’s Initial Rubric
+5 criteria
+0 items
+·
+0 contributors
+·
+Draft
+Training architecture must be constrained strictly under 50 Million parameters.
+
+Enforces efficient architecture design rather than brute-force memorization.
+
+MODELING
+RECOMMENDED
+All model weights must be randomly initialized. Pre-trained weights from ANY model (language or protein foundation models like ESM) are prohibited.
+
+The challenge tests whether the agent can learn amino acid sequence patterns from the provided training data alone.
+
+MODELING
+REQUIRED
+The tokenizer should be designed for amino acid sequences, using single-residue tokens or biologically meaningful k-mer groupings rather than English subword tokenization.
+
+Standard English BPE tokenizers fragment amino acid sequences into biologically meaningless subwords.
+
+FEATURE ENGINEERING
+RECOMMENDED
+The model uses an autoregressive or sequence-to-sequence architecture capable of generating variable-length amino acid completions.
+
+The task inherently requires sequential generation, ruling out standard classification approaches.
+
+MODELING
+REQUIRED
+The training code implements proper data loading, learning rate scheduling, and validation loss tracking.
+
+Validates robust ML engineering practices.
+
+TRAINING
+RECOMMENDED

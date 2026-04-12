@@ -1,0 +1,429 @@
+1. Overview
+This challenge asks participants to determine which family of finite automaton is shown in a diagram image: dfa, nfa, or epsilon_nfa. The dataset consists of rendered automata diagrams generated from a controlled pipeline that constructs machines and exports them as PNG images.
+
+This task is a computer vision classification problem. The input to the model is an image containing a state machine diagram, and the goal is to classify the automaton family represented in that image. However, the visual signal in this dataset is not based on ordinary photographic features such as texture, color, or object appearance. Instead, the relevant information is contained in the diagram structure of the automaton.
+
+Each diagram encodes a finite state machine using standard conventions:
+
+states are represented as nodes
+accepting states appear as double circles
+directed edges represent transitions
+edge labels correspond to input symbols
+epsilon transitions may appear in some machines
+The classification therefore depends on how these structural elements interact. For example:
+
+a deterministic finite automaton (dfa) has at most one outgoing transition per symbol from each state
+a nondeterministic finite automaton (nfa) may allow multiple transitions on the same symbol
+an epsilon_nfa may additionally contain transitions labeled with the epsilon symbol
+Because of this, solving the task requires recognizing the structural properties of the diagram, not simply detecting visual patterns. A successful system must interpret the graphical elements in the image and infer the type of machine being represented.
+
+Participants may approach the task using standard computer vision techniques such as convolutional neural networks or vision transformers. More advanced solutions may also incorporate additional processing steps such as:
+
+text recognition for transition labels
+graph extraction from diagram geometry
+symbolic parsing of transitions
+structured reasoning over the inferred automaton
+These approaches are optional, but they illustrate that the problem lies at the intersection of visual recognition and diagram understanding.
+
+The objective is to build a model that:
+
+Reads an automaton diagram image.
+Infers whether the depicted machine is a dfa, nfa, or epsilon_nfa.
+Produces calibrated probabilities for the three classes.
+For each example, the system must output three probabilities:
+
+(proba_dfa, proba_nfa, proba_epsilon_nfa)
+
+These represent the predicted probabilities for the automaton being a DFA, NFA, or epsilon-NFA.
+
+The probabilities must satisfy the following constraint:
+
+proba_dfa + proba_nfa + proba_epsilon_nfa = 1
+
+The predicted label for an example is the class with the highest submitted probability.
+
+2. Evaluation
+Submissions are evaluated using a weighted combination of classification performance, probability quality, and confidence calibration.
+
+The final competition score is defined as
+
+Final Score = 0.55 × Macro F1 + 0.25 × Probabilistic Accuracy + 0.20 × Confidence Score
+This scoring rule evaluates three complementary aspects of a solution:
+
+Correct classification of automaton families
+Probability quality, meaning the model places high probability on the true class
+Calibration, ensuring the model's probabilities behave like meaningful confidence estimates
+Macro F1
+Participants submit probabilities for the three labels:
+
+dfa
+nfa
+epsilon_nfa
+The predicted class for each example is the label with the highest probability.
+
+Macro F1 is computed as the mean F1 score across the three classes:
+
+Macro F1
+=
+F
+1
+d
+f
+a
++
+F
+1
+n
+f
+a
++
+F
+1
+e
+p
+s
+i
+l
+o
+n
+n
+f
+a
+3
+Macro F1= 
+3
+F1 
+dfa
+​
+ +F1 
+nfa
+​
+ +F1 
+epsilonnfa
+​
+ 
+​
+ 
+Using a macro average ensures that all automaton families contribute equally to the score, preventing the evaluation from being dominated by whichever class appears most frequently.
+
+Probabilistic Accuracy
+In addition to classification accuracy, the evaluation rewards models that assign strong probability mass to the correct class.
+
+This component uses multiclass log loss:
+
+Log Loss
+=
+−
+1
+N
+∑
+i
+=
+1
+N
+log
+⁡
+(
+p
+i
+,
+y
+i
+)
+Log Loss=− 
+N
+1
+​
+  
+i=1
+∑
+N
+​
+ log(p 
+i,y 
+i
+​
+ 
+​
+ )
+where
+
+p
+i
+,
+y
+i
+p 
+i,y 
+i
+​
+ 
+​
+ 
+is the probability assigned to the true class for example iii.
+
+The probabilistic component is then defined as
+
+Probabilistic Accuracy
+=
+max
+⁡
+(
+0
+,
+1
+−
+Log Loss
+log
+⁡
+(
+3
+)
+)
+Probabilistic Accuracy=max(0,1− 
+log(3)
+Log Loss
+​
+ )
+This term rewards models that not only predict the correct label but also assign high probability to that label.
+
+Confidence Score
+Participants must submit the following probabilities for every example:
+
+proba_dfa
+proba_nfa
+proba_epsilon_nfa
+Each value must lie between 0 and 1, and the three probabilities must sum to 1.
+
+Confidence is evaluated using a normalized multiclass Brier score:
+
+Brier
+=
+1
+N
+∑
+i
+=
+1
+N
+∑
+c
+∈
+dfa
+,
+nfa
+,
+epsilonnfa
+(
+p
+i
+c
+−
+y
+i
+c
+)
+2
+Brier= 
+N
+1
+​
+  
+i=1
+∑
+N
+​
+  
+c∈dfa,nfa,epsilonnfa
+∑
+​
+ (p 
+ic
+​
+ −y 
+ic
+​
+ ) 
+2
+ 
+where
+
+y
+i
+c
+=
+{
+1
+if 
+c
+ is the true class
+0
+otherwise
+y 
+ic
+​
+ ={ 
+1
+​
+  
+if c is the true class0
+​
+  
+otherwise
+​
+ 
+The confidence component is defined as
+
+Confidence Score
+=
+1
+−
+Brier
+2
+Confidence Score=1− 
+2
+Brier
+​
+ 
+This metric rewards models whose probability outputs behave like well-calibrated confidence estimates rather than arbitrary scores.
+
+Reference Implementation
+import numpy as np
+
+labels = ["dfa", "nfa", "epsilon_nfa"]
+prob_cols = ["proba_dfa", "proba_nfa", "proba_epsilon_nfa"]
+label_to_idx = {l: i for i, l in enumerate(labels)}
+
+def macro_f1(y_true, y_pred, n_classes=3):
+    f1s = []
+    for c in range(n_classes):
+        tp = np.sum((y_true == c) & (y_pred == c))
+        fp = np.sum((y_true != c) & (y_pred == c))
+        fn = np.sum((y_true == c) & (y_pred != c))
+        denom = 2 * tp + fp + fn
+        f1s.append(0 if denom == 0 else (2 * tp) / denom)
+    return np.mean(f1s)
+
+
+# predicted probabilities
+pred_probs = submission[prob_cols].to_numpy()
+
+# true labels
+y_true = np.array([label_to_idx[y] for y in y_true_labels])
+
+# predicted labels
+y_pred = pred_probs.argmax(axis=1)
+
+# Macro F1
+macro_f1_score = macro_f1(y_true, y_pred, n_classes=len(labels))
+
+# Probabilistic accuracy
+true_probs = pred_probs[np.arange(len(y_true)), y_true]
+log_loss = -np.mean(np.log(true_probs))
+probabilistic_accuracy = max(0, 1 - log_loss / np.log(len(labels)))
+
+# Confidence score (Brier)
+y_onehot = np.zeros_like(pred_probs)
+y_onehot[np.arange(len(y_true)), y_true] = 1
+
+brier = np.mean(np.sum((pred_probs - y_onehot) ** 2, axis=1))
+confidence_score = 1 - brier / 2
+
+final_score = (
+    0.55 * macro_f1_score
+    + 0.25 * probabilistic_accuracy
+    + 0.20 * confidence_score
+)
+3. Data Structure
+The directory structure is:
+
+public/
+  train.csv
+  test.csv
+  train_images/
+  test_images/
+  sample_submission.csv
+train.csv
+
+Contains the public inputs together with the ground-truth labels.
+
+test.csv
+
+Contains the same public inputs without the target label.
+
+train_images/ and test_images/
+
+Store the rendered automata diagrams referenced by the CSV files.
+
+sample_submission.csv
+
+Provides an example of the expected submission format.
+
+4. Features
+Each row in the dataset corresponds to a single automaton diagram recognition task.
+
+Training set
+The training split contains the following fields:
+
+id — unique identifier for the example
+image_path — relative path to the automaton diagram image
+machine_type — type of automaton, which serves as the target label. Possible values are dfa, nfa, or epsilon_nfa
+state_count — number of states present in the diagram
+Test set
+The test split contains only the input information required for inference:
+
+id: unique identifier for the example
+image_path: relative path to the automaton diagram image
+state_count: number of states present in the diagram
+The machine_type field is not included in the test set and must be predicted by the model.
+
+Input modality
+The primary input is the automaton diagram image, which represents a structured graphical representation of a finite automaton.
+
+The state_count field provides lightweight structural metadata indicating how many states appear in the diagram and serve as a supporting signal that helps models validate their interpretation of the diagram. This design enables experimentation with multimodal approaches that combine visual diagram understanding with simple structural metadata.
+
+5. Submission Format
+Participants must submit a CSV file with exactly four columns:
+
+id,proba_dfa,proba_nfa,proba_epsilon_nfa
+TS0001,0.91,0.07,0.02
+TS0002,0.05,0.83,0.12
+TS0003,0.03,0.09,0.88
+Submission requirements:
+
+Exactly one row must appear for every id in test.csv.
+The required column headers are: id, proba_dfa, proba_nfa, proba_epsilon_nfa
+Each probability must be numeric and lie between 0 and 1.
+The three probabilities must sum to 1 for each example (within a small numeric tolerance).
+Submissions that do not match this format should be automatically rejected.
+
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+103
+Top Score
+0.916
+Created
+Mar 15, 2026
+
+Agent Evaluations

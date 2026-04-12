@@ -1,0 +1,84 @@
+Reward Model Calibration: Score Margin Regression
+Overview
+Standard reward models in Reinforcement Learning from Human Feedback (RLHF) typically function as binary classifiers: they simply predict whether Response A is better than Response B. This challenge asks a more complex question: How much better is it? Competitors are tasked with predicting the exact absolute margin of victory (score difference) between two LLM responses to a given prompt.
+
+By shifting from a binary classification to a continuous regression task, this challenge pushes competitors to build highly calibrated reward models that truly understand the nuances of generation quality. Mastering this degree of quality difference is highly relevant for advanced AI alignment techniques like Direct Preference Optimization (DPO), where understanding the magnitude of preference leads to more robust and helpful AI assistants.
+
+Evaluation
+Submissions are scored using Root Mean Squared Error (RMSE). RMSE measures the average difference between your predicted score margins and the actual ground truth margins, heavily penalizing larger miscalculations. A lower RMSE score indicates better performance.
+
+import numpy as np
+from sklearn.metrics import mean_squared_error
+
+def evaluate(y_true, y_pred):
+    # Calculates the Root Mean Squared Error
+    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
+    return float(rmse)
+Dataset
+The dataset consists of user prompts and pairs of AI-generated responses. The positioning of the chosen and rejected responses has been randomized between response_A and response_B to prevent positional bias.
+
+Directory Structure:
+
+public/train.csv: The labeled training set.
+public/test.csv: The unlabeled test set used for evaluation.
+public/sample_submission.csv: An example showing the expected submission format.
+Column Descriptions:
+
+id (string): A unique identifier for the prompt-response pair (e.g., train_00001).
+prompt (string): The user's original instruction or query.
+response_A (string): The text of the first randomized response.
+response_B (string): The text of the second randomized response.
+score_difference (float): [Target Variable / Train Only] The absolute mathematical difference between the higher-scoring response and the lower-scoring response.
+Submission
+Submit a CSV file with the following format matching the IDs found in test.csv:
+
+| Column           | Type   | Description                                     |
+| ---------------- | ------ | ----------------------------------------------- |
+| id               | string | Row identifier from `test.csv`                  |
+| score_difference | float  | Predicted absolute score margin (must be ≥ 0.0) |
+
+Sample Submission
+| id         | score_difference |
+| ---------- | ---------------- |
+| test_00000 | 0.0              |
+| test_00001 | 0.0              |
+| test_00002 | 0.0              |
+| test_00003 | 0.0              |
+| test_00004 | 0.0              |
+| test_00005 | 0.0              |
+
+Requirements:
+
+Must contain exactly one row for every test sample in the scoring set.
+Must include the header row.
+Predictions cannot be negative, as the target is an absolute score difference.
+Ensure there are no duplicate id rows
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+46
+Top Score
+1.635
+Created
+Mar 1, 2026
+
+Agent Evaluations

@@ -1,0 +1,350 @@
+X-ray 2D Generative Modeling
+Editor View
+X-ray 2D Generative Modeling
+Flag Problem
+Domain
+Computer Vision
+Difficulty
+Hard
+Scoring
+↓ Lower is better
+Status
+Accepted
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(2)
+Rubrics
+Your Submissions
+# Xray 2D Image Generation
+
+## Overview
+
+The objective of this competition is to generate synthetic data, specifically 2D chest X-ray scans.
+
+Chest X-rays are imaging exams performed daily and can be performed in various patient positions (lying, standing, etc).
+
+Chest X-rays visualize organs such as lungs, the heart, bones, and liver.
+
+In clinical settings, X-ray imaging is performed at high resolutions for better diagnostic accuracy.
+
+In this challenge, the images are slightly cropped and aggressively downsampled. The final resolution of each image is 64x64.
+
+The challenging aspect here is to train a generative model to synthesize high-quality, realistic, and diverse chest X-ray scans under runtime and hardware constraints.
+
+Synthetic data can be used for data augmentation in downstream tasks or for pretraining diverse models. Especially data augmentation using synthetic data was shown to improve generalization to external test sets.
+
+This challenge is novel in combining preprocessed chest X-ray data with a probing-aware distribution metric, rewarding generative models that produce both realistic and genuinely non-copied synthetic cohorts.
+
+## Evaluation
+
+Submissions are evaluated using a patch-based multiscale Sliced Wasserstein Distance (SWD) between synthetic samples and real scans from a hidden unseen test set (n=5000).
+
+The grader parses each pixels cell as a 64x64 grayscale image, scales values to [0,1], builds a 3-level Laplacian pyramid, samples random local patches at each scale, normalizes each patch independently, and computes SWD using deterministic random projections. The final score is the mean SWD across pyramid levels, reported as SWD × 10^3.
+
+Lower is better.
+
+SWD settings in the grader:
+
+128 random unit projection directions
+deterministic seed 2026
+score is the root-mean-square difference between sorted projected values
+lower is better
+SWD grading core metric function:
+
+import numpy as np
+from numpy.lib.stride_tricks import sliding_window_view
+
+PIXEL_SIDE = 64
+SWD_NUM_PROJECTIONS = 128
+SWD_SEED = 2026
+SWD_PATCH_SIZE = 7
+SWD_PATCHES_PER_IMAGE = 64
+SWD_PYRAMID_LEVELS = 3
+SWD_REPORT_SCALE = 1000.0
+
+
+def _gaussian_blur_batch(images: np.ndarray) -> np.ndarray:
+    kernel = np.array(
+        [
+            [1, 4, 6, 4, 1],
+            [4, 16, 24, 16, 4],
+            [6, 24, 36, 24, 6],
+            [4, 16, 24, 16, 4],
+            [1, 4, 6, 4, 1],
+        ],
+        dtype=np.float32,
+    ) / 256.0
+
+    padded = np.pad(images, ((0, 0), (2, 2), (2, 2)), mode="reflect")
+    windows = sliding_window_view(padded, (5, 5), axis=(1, 2))
+    blurred = np.tensordot(windows, kernel, axes=((-2, -1), (0, 1)))
+    return blurred.astype(np.float32)
+
+
+def _pyr_down(images: np.ndarray) -> np.ndarray:
+    return _gaussian_blur_batch(images)[:, ::2, ::2]
+
+
+def _pyr_up(images: np.ndarray, out_h: int, out_w: int) -> np.ndarray:
+    up = np.zeros((images.shape[0], images.shape[1] * 2, images.shape[2] * 2), dtype=np.float32)
+    up[:, ::2, ::2] = images
+    up = 4.0 * _gaussian_blur_batch(up)
+    return up[:, :out_h, :out_w]
+
+
+def _laplacian_pyramid_gray(images: np.ndarray, num_levels: int) -> list:
+    gauss = [images.astype(np.float32)]
+    for _ in range(1, num_levels):
+        gauss.append(_pyr_down(gauss[-1]))
+
+    pyramid = []
+    for i in range(num_levels - 1):
+        h, w = gauss[i].shape[1], gauss[i].shape[2]
+        up = _pyr_up(gauss[i + 1], h, w)
+        pyramid.append((gauss[i] - up).astype(np.float32))
+
+    pyramid.append(gauss[-1].astype(np.float32))
+    return pyramid
+
+
+def _extract_random_patches(images: np.ndarray, patches_per_image: int, patch_size: int, rng) -> np.ndarray:
+    n, h, w = images.shape
+    total = n * patches_per_image
+    image_ids = np.repeat(np.arange(n), patches_per_image)
+
+    max_y = h - patch_size + 1
+    max_x = w - patch_size + 1
+    ys = rng.integers(0, max_y, size=total)
+    xs = rng.integers(0, max_x, size=total)
+
+    windows = sliding_window_view(images, (patch_size, patch_size), axis=(1, 2))
+    patches = windows[image_ids, ys, xs]
+    return patches.astype(np.float32)
+
+
+def _normalize_patches(patches: np.ndarray) -> np.ndarray:
+    flat = patches.reshape(patches.shape[0], -1).astype(np.float32)
+    mean = flat.mean(axis=1, keepdims=True)
+    std = flat.std(axis=1, keepdims=True)
+    return ((flat - mean) / (std + 1e-8)).astype(np.float32)
+
+
+def _sliced_wasserstein_from_features(real_features: np.ndarray, fake_features: np.ndarray, num_projections: int, seed: int) -> float:
+    rng = np.random.default_rng(seed)
+    m = min(real_features.shape[0], fake_features.shape[0])
+    real_features = real_features[:m]
+    fake_features = fake_features[:m]
+
+    dim = real_features.shape[1]
+    directions = rng.standard_normal((num_projections, dim), dtype=np.float32)
+    directions /= (np.linalg.norm(directions, axis=1, keepdims=True) + 1e-12)
+
+    real_proj = real_features.astype(np.float64) @ directions.T.astype(np.float64)
+    fake_proj = fake_features.astype(np.float64) @ directions.T.astype(np.float64)
+
+    real_proj.sort(axis=0)
+    fake_proj.sort(axis=0)
+
+    return float(np.mean(np.abs(real_proj - fake_proj), dtype=np.float64))
+
+
+def swd_between_two_images(real_image: np.ndarray, fake_image: np.ndarray) -> float:
+    real_image = np.asarray(real_image, dtype=np.float32)
+    fake_image = np.asarray(fake_image, dtype=np.float32)
+
+    if real_image.shape != (PIXEL_SIDE, PIXEL_SIDE) or fake_image.shape != (PIXEL_SIDE, PIXEL_SIDE):
+        raise ValueError("Both images must have shape (64, 64).")
+
+    if np.any(real_image < 0) or np.any(real_image > 255) or np.any(fake_image < 0) or np.any(fake_image > 255):
+        raise ValueError("Pixel values must be in [0, 255].")
+
+    real_pixels = (real_image / 255.0)[None, ...]
+    fake_pixels = (fake_image / 255.0)[None, ...]
+
+    real_pyramid = _laplacian_pyramid_gray(real_pixels, SWD_PYRAMID_LEVELS)
+    fake_pyramid = _laplacian_pyramid_gray(fake_pixels, SWD_PYRAMID_LEVELS)
+
+    rng = np.random.default_rng(SWD_SEED)
+    level_scores = []
+
+    for level in range(SWD_PYRAMID_LEVELS):
+        real_patches = _extract_random_patches(
+            real_pyramid[level],
+            patches_per_image=SWD_PATCHES_PER_IMAGE,
+            patch_size=SWD_PATCH_SIZE,
+            rng=rng,
+        )
+        fake_patches = _extract_random_patches(
+            fake_pyramid[level],
+            patches_per_image=SWD_PATCHES_PER_IMAGE,
+            patch_size=SWD_PATCH_SIZE,
+            rng=rng,
+        )
+
+        real_features = _normalize_patches(real_patches)
+        fake_features = _normalize_patches(fake_patches)
+
+        level_score = _sliced_wasserstein_from_features(
+            real_features=real_features,
+            fake_features=fake_features,
+            num_projections=SWD_NUM_PROJECTIONS,
+            seed=SWD_SEED + level,
+        )
+        level_scores.append(level_score)
+
+    return float(np.mean(level_scores) * SWD_REPORT_SCALE)
+
+
+# Example:
+real_image = np.zeros((64, 64), dtype=np.uint8)
+fake_image = np.zeros((64, 64), dtype=np.uint8)
+
+score = swd_between_two_images(real_image, fake_image)
+print(f"SWD x 1e3: {score:.6f}")
+
+A copy detection check is also applied before SWD scoring :
+
+if triggered, final score is 1000.0
+Current local baseline: the provided random-noise sample submission scores about SWD 0.1923.
+
+## Submission
+
+The grader reads only CSV content. Submit a single CSV file named submission.csv.
+
+The submission must contain exactly 5000 rows. For compatibility, use IDs from dataset/public/sample_submission.csv.
+
+## Dataset
+
+The dataset contains a public training set and a hidden set for testing.
+
+20000 public training images
+5000 hidden test images
+All images are PNG and size 64x64.
+
+### File Structure
+
+
+dataset/
+
+  ├── public/
+
+  │   ├── train/
+
+  │   │   ├── <id>.png
+
+  │   │   └── ...
+
+  │   ├── sample_submission/
+
+  │   │   ├── <id>.png
+
+  │   │   └── ...
+
+  │   ├── train.csv
+
+  │   └── sample_submission.csv
+
+  └── private/
+
+      ├── test/
+
+      │   ├── <id>.png
+
+      │   └── ...
+
+      └── answers.csv
+
+public/train: contains X-rays for training.
+public/sample_submission: contains 5000 dummy X-rays in 64x64 resolution as a dummy baseline submission.
+public/train.csv: contains id,path for training images.
+## Features
+
+Clinical metadata is not available. This task requires generation of new unique synthetic images. Therefore only images are provided without additional features.
+
+## Data Characteristics
+
+Missing values: No. All images have size 64x64.
+
+## Submission Format
+
+Your submission must include a submission.csv file.
+
+submission.csv must have exactly 2 columns with this header:
+
+
+id,pixels
+
+Column definitions:
+
+id (string/hash-like text): sample identifier. Use the IDs provided in the official sample_submission.csv.
+pixels (string): serialized 64x64 grayscale matrix with exactly 4096 values in [0,255].
+Rules:
+
+submission.csv must contain exactly 5000 data rows (plus header).
+No missing values.
+No duplicate id values.
+Every pixels entry must decode to exactly 4096 grayscale values.
+Copying any real image in any format is not allowed.
+Valid example:
+
+
+id,pixels
+
+00097c3531ec108e,[[0 1 2 ...];[...]]
+
+000b82cf7175e82b,[[12 9 4 ...];[...]]
+
+0012a62c3affc65c,[[23 11 7 ...];[...]]
+
+004198901473889b,[[88 64 59 ...];[...]]
+
+Readable pixels example (truncated):
+
+
+[[103 25 179 44 75 ... 82 165];
+
+ [79 120 175 100 26 ... 162 24];
+
+ [223 207 86 169 110 ... 76 48];
+
+ ...;
+
+ [86 41 146 238 218 ... 137 45]]
+
+Shape reminder: exactly 64 rows, each row has 64 integers in [0,255], total 4096 values per sample.
+
+You can use the following function to convert PNGs to the expected cell format:
+
+
+from PIL import Image
+
+import numpy as np
+
+  
+
+
+def png_to_cell(png_path: str, side: int = 64) -> str:
+
+with [Image.open](http://Image.open)(png_path) as img:
+
+        resample = Image.Resampling.BILINEAR if hasattr(Image, "Resampling") else Image.BILINEAR
+
+        arr = np.asarray(img.convert("L").resize((side, side), resample), dtype=np.uint8)
+
+return "[[" + "];[".join(" ".join(map(str, row.tolist())) for row in arr) + "]]"
+
+
+cell_value = png_to_cell("/path/to/image.png")
+
+## Important Notes
+
+This is a 2D image generation problem.
+
+Copying, reusing, or submitting slightly edited versions of training data is prohibited. The solution must implement a generative model. Non-compliant solutions will be rejected.
+
+Only generative model approaches are allowed (GAN, diffusion, VAE, or recent generative architectures). Solutions without a generative model will be rejected.
+
+Submissions include copy detection and will be manually reviewed for compliance.
+
+Use dataset/public/sample_submission.csv as the required submission template.

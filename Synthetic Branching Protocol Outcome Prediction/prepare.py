@@ -1,0 +1,167 @@
+from pathlib import Path
+
+
+def prepare(raw: Path, public: Path, private: Path) -> None:
+    import random as _rnd
+    import numpy as np
+    import pandas as pd
+
+    raw, public, private = Path(raw), Path(public), Path(private)
+
+    data = pd.read_csv(raw / "data.csv")
+
+    rng = _rnd.Random(271828182)
+    np_rng = np.random.RandomState(77)
+
+    OUTCOME_FIELDS = ["terminal_state", "primary_product", "byproduct_class", "process_status"]
+
+    # ---- Obfuscate outcome field values ----
+    field_maps = {}
+    for f in OUTCOME_FIELDS:
+        unique_vals = sorted(data[f].unique().tolist())
+        n = len(unique_vals)
+        codes = [f"O{f[0].upper()}{i:03d}" for i in range(n)]
+        rng.shuffle(codes)
+        mapping = {unique_vals[i]: codes[i] for i in range(n)}
+        field_maps[f] = mapping
+        data[f] = data[f].map(mapping)
+
+    # ---- Obfuscate protocol text: rename reagents, tools, states, step IDs ----
+    all_reagents = sorted(set())
+    all_tools = sorted(set())
+    all_states = sorted(set())
+    for text in data["protocol_text"]:
+        for token in text.split():
+            clean = token.strip(".,;:[]()!?")
+            if clean.startswith("Reagent-"):
+                all_reagents.append(clean)
+            elif clean.startswith("Unit-"):
+                all_tools.append(clean)
+            elif clean.startswith("Phase-"):
+                all_states.append(clean)
+    all_reagents = sorted(set(all_reagents))
+    all_tools = sorted(set(all_tools))
+    all_states = sorted(set(all_states))
+
+    reagent_codes = [f"RX{i:03d}" for i in range(len(all_reagents))]
+    rng.shuffle(reagent_codes)
+    reagent_map = {all_reagents[i]: reagent_codes[i] for i in range(len(all_reagents))}
+
+    tool_codes = [f"EQ{i:03d}" for i in range(len(all_tools))]
+    rng.shuffle(tool_codes)
+    tool_map = {all_tools[i]: tool_codes[i] for i in range(len(all_tools))}
+
+    state_codes = [f"PH{i:03d}" for i in range(len(all_states))]
+    rng.shuffle(state_codes)
+    state_map = {all_states[i]: state_codes[i] for i in range(len(all_states))}
+
+    step_id_codes = [f"X{i:02d}" for i in range(50)]
+    rng.shuffle(step_id_codes)
+    step_id_map = {f"S{i:02d}": step_id_codes[i] for i in range(50)}
+
+    def _obfuscate_text(text):
+        result = text
+        for orig, code in sorted(reagent_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        for orig, code in sorted(tool_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        for orig, code in sorted(state_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        for orig, code in sorted(step_id_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        return result
+
+    data["protocol_text"] = data["protocol_text"].apply(_obfuscate_text)
+
+    # ---- Rename initial condition columns to opaque names ----
+    col_rename = {
+        "init_var_0": "iv_a", "init_var_1": "iv_b",
+        "init_var_2": "iv_c", "init_var_3": "iv_d",
+        "init_var_4": "iv_e",
+    }
+    data = data.rename(columns=col_rename)
+    iv_cols = ["iv_a", "iv_b", "iv_c", "iv_d", "iv_e"]
+
+    # ---- Add red-herring numeric features ----
+    n = len(data)
+    data["feat_x1"] = np_rng.normal(0, 1, n).round(3)
+    data["feat_x2"] = np_rng.uniform(-2, 2, n).round(3)
+    data["feat_x3"] = np_rng.exponential(1.5, n).round(3)
+
+    # ---- Split by protocol: 75/25, test gets UNSEEN protocols ----
+    all_pids = sorted(data["protocol_id"].unique().tolist())
+    rng_split = _rnd.Random(314159265)
+    rng_split.shuffle(all_pids)
+
+    split_idx = int(len(all_pids) * 0.75)
+    train_pids = set(all_pids[:split_idx])
+    test_pids = set(all_pids[split_idx:])
+
+    train_df = data[data["protocol_id"].isin(train_pids)].copy()
+    test_df = data[data["protocol_id"].isin(test_pids)].copy()
+
+    # ---- For test: keep only 1 condition set per protocol (reduce signal) ----
+    test_rows = []
+    for pid in sorted(test_pids):
+        pid_rows = test_df[test_df["protocol_id"] == pid]
+        keep_idx = pid_rows.index[rng.randint(0, len(pid_rows) - 1)]
+        test_rows.append(pid_rows.loc[[keep_idx]])
+    test_df = pd.concat(test_rows, ignore_index=True)
+
+    # ---- Inject noise into ~5% of test protocol texts (swap 2 step blocks) ----
+    n_noise = int(len(test_df) * 0.05)
+    noise_indices = sorted(rng.sample(range(len(test_df)), n_noise))
+    for idx in noise_indices:
+        text = test_df.at[idx, "protocol_text"]
+        parts = text.split(" ||| ")
+        if len(parts) >= 4:
+            i, j = rng.sample(range(len(parts)), 2)
+            parts[i], parts[j] = parts[j], parts[i]
+            inject_step = rng.choice(list(step_id_map.values()))
+            inject_reagent = rng.choice(reagent_codes)
+            inject_tool = rng.choice(tool_codes)
+            noise_step = f"[{inject_step}] Apply {inject_reagent} using {inject_tool} as supplementary treatment."
+            insert_pos = rng.randint(0, len(parts))
+            parts.insert(insert_pos, noise_step)
+            test_df.at[idx, "protocol_text"] = " ||| ".join(parts)
+
+    # ---- Perturb ~10% of test initial conditions slightly ----
+    n_perturb = int(len(test_df) * 0.10)
+    perturb_indices = sorted(rng.sample(range(len(test_df)), n_perturb))
+    for idx in perturb_indices:
+        for col in iv_cols:
+            test_df.at[idx, col] = round(test_df.at[idx, col] + np_rng.normal(0, 0.3), 3)
+
+    # ---- Assign new sequential IDs ----
+    train_df = train_df.sort_values(["protocol_id", "condition_set"]).reset_index(drop=True)
+    train_df["id"] = range(len(train_df))
+
+    test_df = test_df.sort_values("protocol_id").reset_index(drop=True)
+    test_df["id"] = range(len(train_df), len(train_df) + len(test_df))
+
+    # ---- Define column sets ----
+    common_cols = ["id", "protocol_id", "protocol_text"] + iv_cols + ["feat_x1", "feat_x2", "feat_x3"]
+    train_cols = common_cols + OUTCOME_FIELDS
+    test_cols = common_cols
+
+    # ---- Write outputs ----
+    public.mkdir(parents=True, exist_ok=True)
+    private.mkdir(parents=True, exist_ok=True)
+
+    train_df[train_cols].to_csv(public / "train.csv", index=False)
+    test_df[test_cols].to_csv(public / "test.csv", index=False)
+
+    sample = test_df[["id"]].copy()
+    for f in OUTCOME_FIELDS:
+        mode_val = train_df[f].mode().iloc[0]
+        sample[f] = mode_val
+    sample.to_csv(public / "sample_submission.csv", index=False)
+
+    test_df[["id"] + OUTCOME_FIELDS].to_csv(private / "answers.csv", index=False)
+
+    print(f"Train: {len(train_df)} rows, {len(train_pids)} protocols")
+    print(f"Test: {len(test_df)} rows, {len(test_pids)} protocols")
+
+
+if __name__ == "__main__":
+    prepare(Path("raw_data"), Path("pub"), Path("priv"))

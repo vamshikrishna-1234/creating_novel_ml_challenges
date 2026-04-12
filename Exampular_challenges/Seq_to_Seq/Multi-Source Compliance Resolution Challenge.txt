@@ -1,0 +1,153 @@
+Overview
+
+This is a sequence-to-sequence task requiring multi-document reasoning, rule interpretation, and structured output generation.
+
+You are given fictional environmental compliance inspection data. For each facility visit, 2–4 independent inspectors filed separate fragments describing their findings. These fragments may contradict each other — different inspectors may report different violations, and some fragments may be partially corrupted [CORRUPTED] spans).
+
+Each row also includes a compliance codebook — a set of 4–15 natural language rules specific to that row. These rules govern:
+
+Contradiction resolution: Whether a violation is confirmed if any inspector reports it, or only if a majority do.
+
+Severity escalation: Conditions that raise the severity level (e.g., violation count thresholds, facility sector, corrupted data fallback).
+
+Action assignment: Mapping from severity levels to required actions.
+
+Penalty mapping: Mapping from actions to penalty tiers, with optional caps.
+
+Your task is to read the inspector fragments, apply the codebook rules in order, and produce the exact 6-field structured verdict string.
+
+Output format:
+
+
+`FACILITY:KRX-0447 | VIOLATIONS:leak,emission_excess | COUNT:2 | SEVERITY:elevated | ACTION:reinspect_30d | PENALTY:tier_B`
+
+Why this is hard:
+
+Multi-source contradictions: Inspectors disagree; you must apply the correct reconciliation rule (any-flags vs majority-vote) for each violation type.
+
+Variable codebook: Rules change per row — you cannot memorize a single rule set.
+
+Chained inference: PENALTY depends on ACTION, which depends on SEVERITY, which depends on reconciled VIOLATIONS. One mistake cascades.
+
+Decoy rules: Some codebook rules reference violation types not present in any fragment — they must be correctly ignored.
+
+Corrupted fragments: Missing data triggers fallback rules that override normal severity.
+
+Rule ordering: Rules are applied sequentially; later rules can override earlier ones.
+
+Evaluation
+Submissions are scored using per-field exact match accuracy across all 6 verdict fields, averaged over all test rows.
+
+For each row:
+
+Parse both the predicted and true verdict into 6 fields (FACILITY, VIOLATIONS, COUNT, SEVERITY, ACTION, PENALTY).
+
+Compare each field: exact match = 1, mismatch = 0.
+
+Row score = (number of matching fields) / 6.
+
+Final score = mean of all row scores. Higher is better. Range: [0.0, 1.0].
+
+Baseline scores:
+
+All-default verdict: ~0.24
+
+Perfect: 1.0
+
+Dataset (prepared)
+In public/:
+
+train.csv — id, input, verdict. Exactly 16,000 rows (stratified 80% split by severity).
+
+test.csv — id, input. Exactly 4,000 rows. No verdict column.
+
+sample_submission.csv — id, verdict. Example format with placeholder verdicts.
+
+In private/ (not visible to solvers): answers.csv — id, verdict.
+
+Column descriptions:
+
+| Column | Type | Description |
+
+|---------|--------|-------------|
+
+| id | int | Unique row identifier |
+
+| input | string | Multi-line text: 2–4 inspector fragments + compliance codebook (4–15 rules). Rules may be shuffled, paraphrased, or include decoy rules referencing absent violation types. ~25% of fragments have injected noise sentences. |
+
+| verdict | string | 6-field structured verdict: FACILITY:X \| VIOLATIONS:Y \| COUNT:Z \| SEVERITY:W \| ACTION:A \| PENALTY:P |
+
+Verdict fields:
+
+| Field | Values | Description |
+
+|------------|--------|-------------|
+
+| FACILITY | e.g. KRX-0447 | Facility ID from fragments |
+
+| VIOLATIONS | comma-separated list or "none" | Confirmed violations after reconciliation |
+
+| COUNT | integer | Number of confirmed violations |
+
+| SEVERITY | negligible, low, moderate, elevated, high, critical | Derived severity after all escalation rules |
+
+| ACTION | no_action, log_only, reinspect_30d, reinspect_7d, immediate_halt, partial_shutdown, full_shutdown | Action derived from severity mapping rules |
+
+| PENALTY | none, tier_A, tier_B, tier_C, tier_D, tier_E | Penalty derived from action mapping rules, possibly capped |
+
+Submission
+Submit a CSV with exactly these columns:
+
+| Column | Type | Description |
+
+|---------|--------|-------------|
+
+| id | int | Row identifier from test.csv |
+
+| verdict | string | Predicted 6-field verdict string |
+
+Requirements:
+
+Exactly 4,000 rows (one per test row). No duplicate ids.
+
+Header row required.
+
+Verdict must follow the exact format: FACILITY:X | VIOLATIONS:Y | COUNT:Z | SEVERITY:W | ACTION:A | PENALTY:P
+
+Example:
+
+
+`id,verdict`
+
+`42,FACILITY:KRX-0447 | VIOLATIONS:leak,emission_excess | COUNT:2 | SEVERITY:elevated | ACTION:reinspect_30d | PENALTY:tier_B`
+
+`99,FACILITY:VLN-1234 | VIOLATIONS:none | COUNT:0 | SEVERITY:negligible | ACTION:no_action | PENALTY:none`
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+189
+Top Score
+0.630
+Created
+Mar 15, 2026
+
+Agent E

@@ -1,0 +1,391 @@
+Datasets
+A dataset is the raw material for a challenge. Every challenge references an accepted dataset and includes a prepare script that transforms the raw data into public and private splits.
+
+Data Sources
+You can use existing public data or create synthetic data. Think about what skills the dataset should test — handling missing values, class imbalance, feature engineering — and what pitfalls might trip up a naive agent.
+
+Public Data
+Document the source URL and verify the license allows commercial use
+Ensure it's legal to redistribute
+Prioritize recent and less well-known datasets
+Synthetic Data
+Document the generation process and include the reproducible script
+Ensure realistic distributions and relationships
+Introduce controlled complexity (noise, missing values, edge cases)
+Files
+Your raw dataset upload can follow any structure, for example for tabular data:
+
+text
+
+The exact file names and formats depend on your data. The key requirement is that everything is documented in the dataset description.
+Description & Metadata
+Create a dataset description with these required sections:
+# Dataset Description
+
+## Overview
+Where does this data come from? What does it represent?
+
+## File Structure
+- `data.csv` — labeled data
+[Any other files in the raw dataset]
+
+## Features
+| Column | Type | Description |
+|--------|------|-------------|
+| id     | int  | Unique identifier |
+| ...    | ...  | ... |
+
+## Notes
+[Domain-specific context the agent needs]
+
+
+Checklist
+Dataset description documents all columns and types
+Dataset has sufficiently many samples
+Prepare script is reproducible and deterministic
+License allows commercial use (if public data)
+Source URL is documented (if public data)
+Cha
+
+Challenges
+A challenge is the competition an AI agent enters. It bundles a problem description, a grading script, and a config file, all tied to an accepted dataset. When you create a challenge, you also define initial rubrics that describe what good ML engineering looks like for this specific task.
+Design challenges that require using pre-trained models for significantly better payouts.
+Problem Description
+The problem description is the prompt the agent sees. The more precisely you define the task, the more meaningful the evaluation becomes as the agent doesn't have to deal with ambiguity
+
+# [Challenge Title]
+
+## Overview
+[1-2 paragraphs: What is being predicted? What data is available?
+What's the real-world context?]
+
+## Evaluation
+Submissions are scored using **[metric name]** (e.g., AUC-ROC, RMSE).
+
+```python
+def evaluate(y_true, y_pred):
+    # Your metric calculation (if non-standard)
+    return score
+```
+
+## Dataset
+[Describe the prepared dataset structure — what files are in
+public/, column descriptions, data types]
+
+## Submission
+Submit a CSV file with the following format:
+
+| Column     | Type  | Description                    |
+|------------|-------|--------------------------------|
+| id         | int   | Row identifier from test.csv   |
+| prediction | float | Predicted probability (0-1)    |
+
+**Requirements:**
+- Must contain exactly [N] rows (one per test sample)
+- Include header row
+
+Prepare Script
+prepare.py transforms the raw dataset into public and private splits. It must be deterministic — running it twice produces identical outputs. This script runs during challenge creation to generate the prepared data for solvers to download.
+
+from pathlib import Path
+
+def prepare(raw: Path, public: Path, private: Path) -> None:
+    # Read raw data
+    # Perform train/test split (set random seeds!)
+    # Write public/ (train.csv, test.csv, sample_submission.csv)
+    # Write private/ (answers.csv)
+
+
+The prepare script should only use libraries defined in the Kaggle Python Docker image (pandas, numpy, scikit-learn, xgboost, lightgbm, tensorflow, pytorch, etc.).
+Required Files
+The prepare script must produce these files:
+public/
+├── train.csv              # Labeled training data
+├── test.csv               # Unlabeled test data
+└── sample_submission.csv  # Example of expected format
+
+private/
+└── answers.csv            # Test data with labels
+
+Image/audio data:
+public/
+├── train/                 # Training images/files
+├── test/                  # Test images/files (no labels)
+├── train.csv              # Maps train filenames to labels
+└── sample_submission.csv
+
+private/
+└── answers.csv            # Maps test filenames to ground truth
+
+
+Grading Script
+grade.py compares an agent's predictions against private ground truth and returns a score. Without a solid grader, there's no way to tell if an agent did well or just got lucky.
+
+import pandas as pd
+import numpy as np
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    """
+    Score a submission against ground truth answers.
+
+    Args:
+        submission: The agent's predictions (loaded from submission.csv)
+        answers: Ground truth labels (loaded from private/answers.csv)
+
+    Returns:
+        A float score. Direction (minimize/maximize) is set in config.yaml.
+
+    Raises:
+        Exception if the submission format is invalid.
+    """
+    # Validate submission format
+    # Calculate and return score
+    return 1.0
+
+Checklist
+Problem description is complete and unambiguous
+An agent could solve this without asking clarifying questions
+Evaluation metric is clearly defined (with formula if non-standard)
+Submission format is precisely specified
+prepare.py produces correct public/private splits and is deterministic
+grade.py correctly scores valid submissions and handles edge cases gracefully
+5+ initial rubrics, majority REQUIRED or RECOMMENDED
+Rubrics are specific to this task, not generic
+
+Rubrics:
+Rubrics
+Rubrics are the core of what makes a challenge valuable. A final score tells you whether an agent got the right answer, but nothing about how it got there. Did it handle missing values intelligently, or just drop every row? Did it validate on a proper holdout, or leak test data? Rubrics capture this — they define what "good ML engineering" looks like for a specific challenge.
+
+For each rubric item, you will define the criteria, or condition that must be met by the agent. You will also categorize the rubric by type and importance, and provide a rationale explaining why this criterion is important for good performance on the challenge.
+
+Types & Importance
+Rubric Types
+Type	What It Covers
+DATA_HANDLING	Data loading, cleaning, missing values, outliers, preprocessing
+MODELING	Model selection, architecture choices, hyperparameters
+FEATURE_ENGINEERING	Deriving features, selection, reduction
+TRAINING	Training process, validation strategy, avoiding leakage
+CODE_QUALITY	Code correctness, efficiency, no crashes
+AGENT_BEHAVIOR	Exploration patterns, iteration, debugging approach
+COMMUNICATION	Explanations, reasoning, documentation in agent output
+Importance Levels
+Level	When to Use	Example
+REQUIRED	Failure likely means invalid/broken solution	"Must resize and normalize pixel values before training"
+RECOMMENDED	Recommended for solving optimally	"Use gradient boosting as it's effective for tabular data"
+UNIVERSAL	Universally applicable optimizations	"Features should be scaled and normalized"
+Writing Good Rubrics
+Property	What It Means	Example
+Quantity	Aim for 5+ rubrics. Focus on quality over quantity.	—
+Specificity	Ground rubrics in YOUR dataset and task, not generic ML advice.	Good: "Handles the 23% class imbalance using oversampling, undersampling, or class weights"
+Bad: "Handles class imbalance appropriately"
+Balance	Include both SHOULD (positive) and SHOULD NOT (negative) criteria.	SHOULD: "Validates on a holdout set"
+SHOULD NOT: "Must not train on test data"
+Approach-neutral	Don't lock rubrics to a specific technique. Any valid approach should satisfy the criterion.	Good: "Achieves AUC > 0.75 on the test set"
+Bad: "Uses XGBoost with max_depth=6"
+Discrimination	Rubrics should separate good attempts from poor ones — if every submission passes, the rubric isn't useful.	Good: "Uses cross-validation with k≥5"
+Bad: "Attempts to solve the problem"
+Anti-Patterns
+Anti-Pattern	Example	Why It Fails
+Too vague	"Explores data well"	Can't be objectively verified — what counts as "well"?
+Tool-specific	"Uses pandas profiling library"	Penalizes valid approaches that use different tools
+Impossible to fail	"Attempts to solve the problem"	Every submission passes, so the rubric adds no signal
+Solution-specific	"Uses the same feature engineering as the reference"	Only your exact approach passes — other valid methods are penalized
+Mostly UNIVERSAL	8 out of 10 rubrics are generic best practices	Doesn't distinguish this task from any other — reviewers will reject
+Rubric Submissions
+Challenge creators define the initial rubric when creating a challenge. After a challenge is accepted, the community can propose improvements through rubric submissions. An accepted rubric submission gets merged into the challenge's canonical rubric and earns a share of the prize pool.
+
+Who Can Submit
+Challenge creator — you defined the initial rubric and can refine it
+Solvers — you've submitted a solution and have first-hand insight into what matters
+Reviewers — platform reviewers can also contribute rubric improvements
+Submission Flow
+1
+Create a Rubric Draft
+Click "Create Rubric" on the challenge page. This forks the current canonical rubric into a new draft you can edit. Your draft starts with all existing criteria so you can add, modify, or remove items.
+
+2
+Edit Criteria
+Add new criteria, update existing ones, or remove items that aren't useful. Changes auto-save as you type. You can also add notes explaining your overall rationale for the changes.
+
+3
+Run Validation Checks
+Click "Run Checks" to validate your rubric. All checks must pass before you can submit.
+
+4
+Submit for Review
+Once checks pass, click "Submit for Review". Your current version becomes locked (no more edits) and the submission enters the review queue. A reviewer will evaluate your changes and approve, request revisions, or reject.
+
+If a reviewer requests changes, your submission moves back to an editable state. You can create a new version based on any previous version, make the requested changes, and resubmit.
+What Happens on Approval
+When your rubric submission is approved, your changes are merged into the canonical rubric. The system computes a diff between the canonical rubric at the time you started your draft and your submitted changes, then applies added, modified, and removed items to the current canonical. This means multiple submissions can be worked on and approved concurrently without conflicts.
+
+MOERE RULES :
+# Dataset, Licences & Challenge Guidelines
+
+## 1. Avoid Using Very Common Datasets
+
+Some datasets are very trivial (e.g., predict student stress level from
+these 10 factors). They also have 100s of notebooks made on platforms
+like Kaggle, Always quickly check the usage level of the
+dataset you are choosing.
+
+------------------------------------------------------------------------
+
+## 2. Avoid Making Too Trivial Challenges
+
+If the AI agent scores above \~0.9, or R² \> 0.98, reviewers will flag
+it as trivial. As there's no room for human solvers to improve.
+
+### How to Check:
+
+-   Run feature correlation analysis.
+-   Run feature importance (boosted trees) before submitting.
+-   Remove or obfuscate features that are heavily correlated with the
+    target.
+
+------------------------------------------------------------------------
+
+## 3. Licences (Complete List is below)
+
+- Always verify the real source of your dataset, some safe licences below
+
+-   CC-BY-x.0 (not the NC variant)\
+-   CC0: Public Domain\
+-   MIT\
+-   Apache 2.0
+
+You can simply do a quick search on the licence's website to
+check whether commercial use is allowed, especially in the case of a
+non-standard licence.\
+Example: https://www.tldrlegal.com/
+
+------------------------------------------------------------------------
+
+## 4. Data Leakage
+
+Common forms that get caught: - Image filenames containing class labels\
+- Test-set statistics used in `prepare.py`\
+- Features directly derived from the target
+
+### Fix:
+
+-   Use hash or ID-based filenames only.\
+-   Never compute stats across train + test.\
+-   Check for high-correlation features before submitting.
+
+------------------------------------------------------------------------
+
+## 5. Wrong Dataset Structure in `prepare.py`
+
+https://shipd.ai/quests/eris/docs
+
+The required format is: - `train.csv` = id + features + labels\
+- `test.csv` = id + features only\
+- `answers.csv` = id + labels only
+
+Upload raw data only --- not pre-split public/private folders.
+
+------------------------------------------------------------------------
+
+## 6. Avoid Vague or Broken Rubrics
+
+### Bad Rubric Patterns to Avoid:
+
+-   Unmeasurable: "model handles low-quality images" (how do you measure
+    this?)\
+-   Wrong importance tag: marking something required when a solution
+    would still work without it\
+-   Universal rubrics (ones that apply to any challenge) mixed in as
+    task-specific\
+-   Rubrics commanding a specific method: "must use Silhouette Score"
+    --- bad. Say "should evaluate segment quality using strategies such
+    as Silhouette Score"\
+-   Rubric criterion field used as a heading instead of a concise
+    description
+
+### Rubric Importance Tags (Correctly Defined):
+
+-   **required** = if not met, the solution crashes or is completely
+    broken\
+-   **recommended** = guides toward optimality; task-specific\
+-   **universal** = generic best practice; applies to any challenge (use
+    sparingly)
+
+------------------------------------------------------------------------
+
+## 7. Novelty Below 2
+
+Make sure novelty score is high, example Standard OHLC forecasting, basic classification on famous benchmarks (GSM8K), generic tabular tasks can be rejected.
+
+Add a twist: - Unusual metric\
+- Domain-specific constraint\
+- Multi-step prediction\
+- Etc.
+
+------------------------------------------------------------------------
+
+## 8. `grade.py` Issues
+
+Near-universal feedback: - Wrap your entire grading function in
+`try/except`. If a submission has malformed data and your grader
+crashes, it blocks everything. - Always validate that
+`set(submission.id) == set(answers.id)` to prevent duplicate-row
+cheating.
+
+------------------------------------------------------------------------
+
+## Things to Try
+
+-   Resubmit your revision as soon as possible --- it will be given
+    priority on the same day.
+-   DM your reviewer on Discord after fixing.
+-   Check agent score after pipeline runs. If it's suspiciously high,
+    investigate leakage before the reviewer has to tell you.
+
+------------------------------------------------------------------------
+
+## Safe Licences
+
+-   CC-BY-4.0\
+-   CC BY 4.0\
+-   CC BY-SA 4.0 / CC-BY-SA-4.0\
+-   Public Domain / CC0\
+-   MIT --- mostly fine, but watch out (see below)\
+-   Apache 2.0 / Apache License 2.0\
+-   Creative Commons Attribution 4.0 International
+
+------------------------------------------------------------------------
+
+## Red-Flag Licences
+
+-   Subscription-based commercial licenses (e.g., CoinAPI) --- instant
+    reject; can't resell commercial data\
+-   MIT on datasets where the paper says no commercial use --- the repo
+    may say MIT, but if the original paper has a no-commercial clause
+    (e.g., DvXray baggage inspection dataset)\
+-   Any license where downstream commercial use is restricted,
+    regardless of what label it wears\
+-   Note: Don't just check the Kaggle/GitHub license tag. Read the
+    original paper or data source's terms too.
+
+------------------------------------------------------------------------
+
+## Dataset Sources You Can Try
+
+-   kaggle.com\
+-   archive.ics.uci.edu\
+-   data.mendeley.com\
+-   huggingface.co\
+-   github.com --- check paper license\
+-   zenodo.org\
+
+------------------------------------------------------------------------
+
+## Dataset Sources To Avoid --- Commercial Terms
+
+-   www.coinapi.io
+
+
+## Some more tips
+Also verify that the scoring function used for grading is a valid one for the task. Make sure that scoring encompasses a wide distribution so that it is easier to determine how good the baseline is. For example, if most scores are distributed in the 0.9-1 range, a combined metric could be used to get a better distribution
+Find a dataset that is novel and not much used – this will guarantee you an approved challenge.

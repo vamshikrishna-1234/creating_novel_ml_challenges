@@ -1,0 +1,296 @@
+Natural Language to Lagrangian Mechanics Reconstruction
+Overview
+In this challenge, participants must recover a formal analytical-mechanics representation from a natural-language description of a physical system. Each example is a prose description of a classical mechanics setup, such as a pendulum with moving support, a bead on a rotating hoop, a spherical pendulum, a spring pendulum, or another constrained dynamical system. The task is to infer the hidden physical structure and output a formal specification consisting of problem status, degrees of freedom, generalized coordinates, assumptions, constraints, coordinate parameterization, kinetic energy, potential energy, and Lagrangian.
+
+The benchmark is intentionally difficult. Problem statements appear in multiple styles, including clean textbook phrasing, compressed scientific prose, lab-note-like descriptions, and more adversarial variants. Some prompts are partially underspecified or phrased to tempt shallow pattern matching. Strong solutions must do more than recall familiar formulas: they must parse the language, reconstruct the latent geometry, distinguish dynamical variables from prescribed motion, detect when a problem is underspecified or inconsistent, and produce structured symbolic outputs.
+
+Evaluation
+Submissions are scored using Hierarchical Mechanics Reconstruction Score (HMRS).
+
+HMRS is a weighted average of nine component scores:
+
+status score
+DOF score
+generalized coordinate score
+assumptions score
+constraints score
+parameterization score
+kinetic energy score
+potential energy score
+Lagrangian score
+The final score is computed as:
+
+0.15 × status score
+0.15 × DOF score
+0.15 × generalized coordinate score
+0.10 × assumptions score
+0.10 × constraints score
+0.15 × parameterization score
+0.08 × kinetic energy score
+0.05 × potential energy score
+0.07 × Lagrangian score
+The structured fields are scored as follows:
+
+status uses exact match
+DOF uses exact match
+generalized coordinates, assumptions, and constraints use thresholded set overlap
+parameterization uses thresholded dictionary overlap after light normalization
+kinetic energy, potential energy, and Lagrangian use strict thresholded expression-string similarity after light canonicalization
+Important note: the symbolic-expression part of HMRS is string-similarity-based, not a full computer algebra equivalence check. Expressions are lightly normalized before comparison. The official metric therefore rewards structurally close symbolic outputs, but does not guarantee recognition of all mathematically equivalent forms.
+
+The metric also includes status-aware and structure-aware caps:
+
+if the predicted status is wrong, the row score is capped
+if DOF is wrong, the row score is capped
+if coordinates or parameterization are badly wrong, the row score is capped
+import json
+import re
+from difflib import SequenceMatcher
+
+def _norm_text(x):
+    if x is None:
+        return ""
+    s = str(x).strip().lower()
+    s = re.sub(r"\s+", " ", s)
+    return s
+
+def _canon_expr(x):
+    s = _norm_text(x)
+    s = s.replace("**", "^")
+    s = s.replace(" ", "")
+    return s
+
+def _safe_json_list(x):
+    try:
+        v = json.loads(x) if isinstance(x, str) else x
+        if isinstance(v, list):
+            return [_norm_text(i) for i in v]
+        return []
+    except Exception:
+        return []
+
+def _safe_json_obj(x):
+    try:
+        v = json.loads(x) if isinstance(x, str) else x
+        if isinstance(v, dict):
+            return {_norm_text(k): _norm_text(vv) for k, vv in v.items()}
+        return {}
+    except Exception:
+        return {}
+
+def _jaccard(a, b):
+    a = set(a)
+    b = set(b)
+    if not a and not b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    return len(a & b) / len(a | b)
+
+def _thresholded_set_score(a, b):
+    a = set(a)
+    b = set(b)
+    if not a and not b:
+        return 1.0
+    if a == b:
+        return 1.0
+    j = _jaccard(a, b)
+    if j >= 0.67:
+        return 0.5
+    return 0.0
+
+def _dict_overlap(a, b):
+    if not a and not b:
+        return 1.0
+    keys = set(a) | set(b)
+    if not keys:
+        return 1.0
+    total = 0.0
+    for k in keys:
+        total += SequenceMatcher(None, a.get(k, ""), b.get(k, "")).ratio()
+    return total / len(keys)
+
+def _thresholded_dict_score(a, b):
+    if not a and not b:
+        return 1.0
+    if a == b and len(a) > 0:
+        return 1.0
+    ov = _dict_overlap(a, b)
+    if ov >= 0.97:
+        return 0.8
+    if ov >= 0.90:
+        return 0.4
+    return 0.0
+
+def _expr_score(a, b):
+    a = _canon_expr(a)
+    b = _canon_expr(b)
+    if not a and not b:
+        return 1.0
+    if not a or not b:
+        return 0.0
+    if a == b:
+        return 1.0
+    sim = SequenceMatcher(None, a, b).ratio()
+    if sim >= 0.98:
+        return 0.75
+    if sim >= 0.93:
+        return 0.35
+    return 0.0
+
+def evaluate(y_true, y_pred):
+    merged = y_true.merge(y_pred, on="id", how="left", suffixes=("_true", "_pred")).fillna("")
+    total = 0.0
+
+    for _, row in merged.iterrows():
+        status_score = 1.0 if str(row["gold_status"]).strip() == str(row["pred_status"]).strip() else 0.0
+        dof_score = 1.0 if str(row["gold_dof"]).strip() == str(row["pred_dof"]).strip() else 0.0
+
+        coord_score = _thresholded_set_score(
+            _safe_json_list(row["gold_generalized_coordinates"]),
+            _safe_json_list(row["pred_generalized_coordinates"])
+        )
+
+        assumptions_score = _thresholded_set_score(
+            _safe_json_list(row["gold_assumptions"]),
+            _safe_json_list(row["pred_assumptions"])
+        )
+
+        constraints_score = _thresholded_set_score(
+            _safe_json_list(row["gold_constraints"]),
+            _safe_json_list(row["pred_constraints"])
+        )
+
+        param_score = _thresholded_dict_score(
+            _safe_json_obj(row["gold_parameterization"]),
+            _safe_json_obj(row["pred_parameterization"])
+        )
+
+        kinetic_score = _expr_score(row["gold_kinetic_energy"], row["pred_kinetic_energy"])
+        potential_score = _expr_score(row["gold_potential_energy"], row["pred_potential_energy"])
+        lagrangian_score = _expr_score(row["gold_lagrangian"], row["pred_lagrangian"])
+
+        row_score = (
+            0.15 * status_score +
+            0.15 * dof_score +
+            0.15 * coord_score +
+            0.10 * assumptions_score +
+            0.10 * constraints_score +
+            0.15 * param_score +
+            0.08 * kinetic_score +
+            0.05 * potential_score +
+            0.07 * lagrangian_score
+        )
+
+        if status_score == 0.0:
+            row_score = min(row_score, 0.25)
+        if dof_score == 0.0:
+            row_score = min(row_score, 0.35)
+        if coord_score == 0.0:
+            row_score = min(row_score, 0.45)
+        if param_score == 0.0:
+            row_score = min(row_score, 0.50)
+
+        total += row_score
+
+    return total / max(len(merged), 1)
+ 
+
+Dataset
+The prepared challenge dataset is organized into standard challenge files.
+
+Files in public/
+train.csv — labeled training set
+test.csv — unlabeled test set
+sample_submission.csv — example submission file
+Files in private/
+answers.csv — ground-truth labels for test.csv
+Training columns
+id — string — unique row identifier
+example_id — string — shared identifier for all variants of the same latent system
+text — string — natural-language mechanics prompt
+system_family — string — high-level family label
+template_name — string — template family used for generation
+style — string — writing style of the prompt
+variant_ambiguity — string — variant-level ambiguity label
+variant_difficulty — string — variant-level difficulty label
+tags — string — pipe-separated concept tags
+gold_status — string — gold problem status, one of unique, underspecified, or inconsistent
+gold_dof — int — gold degrees of freedom
+gold_generalized_coordinates — string — JSON list of coordinate names
+gold_assumptions — string — JSON list of assumptions
+gold_constraints — string — JSON list of constraints
+gold_parameterization — string — JSON object of coordinate parameterization
+gold_kinetic_energy — string — gold kinetic energy expression
+gold_potential_energy — string — gold potential energy expression
+gold_lagrangian — string — gold Lagrangian expression
+Test columns
+id — string — unique row identifier
+example_id — string — parent latent-system identifier
+text — string — natural-language mechanics prompt
+system_family — string — high-level family label
+template_name — string — template family
+style — string — prompt style
+variant_ambiguity — string — variant-level ambiguity label
+variant_difficulty — string — variant-level difficulty label
+tags — string — pipe-separated concept tags
+Notes on challenge design
+Different rows may describe related mechanics families but differ in key latent assumptions.
+Multiple language variants may exist for the same latent system in the source corpus, but challenge preparation enforces leakage-safe grouping.
+The test split is intentionally harder than the training split.
+Some prompts are intentionally difficult, including compressed, trap-heavy, ambiguity-bearing, or partially underspecified descriptions.
+The benchmark rewards structured reconstruction rather than free-form explanation.
+Submission
+Submit a CSV file with the following format:
+
+id — string — row identifier from test.csv
+pred_status — string — predicted problem status, one of unique, underspecified, or inconsistent
+pred_dof — string — predicted degrees of freedom
+pred_generalized_coordinates — string — JSON list of generalized coordinates
+pred_assumptions — string — JSON list of assumptions
+pred_constraints — string — JSON list of constraints
+pred_parameterization — string — JSON object of parameterization
+pred_kinetic_energy — string — predicted kinetic energy expression
+pred_potential_energy — string — predicted potential energy expression
+pred_lagrangian — string — predicted Lagrangian expression
+Example submission
+id,pred_status,pred_dof,pred_generalized_coordinates,pred_assumptions,pred_constraints,pred_parameterization,pred_kinetic_energy,pred_potential_energy,pred_lagrangian
+test_0000001,unique,1,"[""theta""]","[""point_mass"",""massless_rod"",""uniform_gravity""]","[""distance(bob, pivot) = l"",""motion confined to a vertical plane""]","{""x"":""l*sin(theta)"",""z"":""-l*cos(theta)""}","1/2*m*l^2*theta_dot^2","-m*g*l*cos(theta)","1/2*m*l^2*theta_dot^2 + m*g*l*cos(theta)"
+test_0000002,unique,2,"[""r"",""phi""]","[""point_mass"",""planar_motion"",""central_potential""]","[""motion confined to a plane""]","{""x"":""r*cos(phi)"",""y"":""r*sin(phi)""}","1/2*m*(r_dot^2 + r^2*phi_dot^2)","1/2*k*r^2","1/2*m*(r_dot^2 + r^2*phi_dot^2) - 1/2*k*r^2"
+Requirements
+Must contain exactly N rows, one per row in test.csv
+Must include a header row
+id values must exactly match those in test.csv
+pred_status must be one of unique, underspecified, or inconsistent
+JSON-valued columns must be valid JSON strings
+Symbolic expressions must be submitted as strings
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+37
+Top Score
+0.443
+Created
+Mar 6, 2026
+
+Agent Evaluations

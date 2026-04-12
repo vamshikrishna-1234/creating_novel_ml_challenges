@@ -1,0 +1,34 @@
+I have to fill all these details for creation of dataset:
+Title
+Required
+A clear, descriptive name for your dataset 
+
+Description
+Required
+Document your dataset thoroughly: columns, data types, characteristics, and any relevant context. Note that images are currently not supported.
+
+Data Files
+Required
+Upload only your RAW dataset files. Archives (ZIP, TAR, etc.) will be automatically extracted. If you upload a zip, make sure it contains only the dataset files and not an extra parent folder.
+
+Source Files
+
+
+Import from URL (up to 100GB)... is alos available
+Import
+Supports HTTP/HTTPS URLs. Maximum file size: 100GB.
+
+No files uploaded yet.
+
+License & Source
+Attribution and licensing information:
+
+
+ODC Attribution License (ODC-By)-exmaple
+On sites like Kaggle/Hugging Face, datasets are often re-uploaded by users from their original source.
+
+It is your responsibility to verify the license from the original source. Failing to do so may result in review delays, and rejection in some cases.
+link to the dataset :(if not synthetic):
+https://huggingface.co/datasets/HuggingFaceFW/fineweb
+
+

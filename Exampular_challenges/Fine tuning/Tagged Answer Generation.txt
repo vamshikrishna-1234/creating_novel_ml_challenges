@@ -1,0 +1,99 @@
+Tagged Answer Generation
+Overview
+You are given a question/problem in the input field.
+
+This is a fine-tuning challenge: you should fine-tune a small language model on the provided training set and use it to predict the final answer for each input. The questions come form various domain such as math, science, politics etc, are designed to be complex and requires thinking thinking to solve
+
+Reasoning may differ across solutions; however, format compliance is also scored.
+
+Constraints
+Time limit: Your end-to-end solution (training + inference + submission generation) should be designed to run in 45 minutes or less.
+Model size limit: Use a model with ≤ 1B parameters (models around 1B are allowed).
+And postprocessing the output is not allowed, but you can use prompt engineering for the output if you want to, but adding tags manually is prohibited.
+Evaluation
+Submissions are scored using a format + answer metric in the range [0, 1] (higher is better).
+
+Metric definition
+For each test row:
+
+Format compliance (60%)
+format_score = 1 if the prediction contains both non-empty blocks in this order:
+<reasoning>...</reasoning>
+<answer>...</answer>
+Otherwise format_score = 0.
+Answer similarity (40%)
+Extract pred_answer from the prediction using this priority:
+Text inside <answer>...</answer>
+(tolerated) text inside <asnwer>...</asnwer>
+If format is broken, try LaTeX \\boxed{...}
+If still not found, use the last 30% of tokens of the prediction as the answer mpare pred_answer to true_answer using normalized string similarity.
+Final per-row score:
+row_score = 0.60 * format_score + 0.40 * answer_similarity
+
+The final score is the mean of row_score across all rows.
+
+Dataset
+The dataset is provided in two parts:
+
+Public files (download for participants)
+public/train.csv
+Supervised training data for fine-tuning.
+
+Column	Type	Description
+id	int	Row identifier.
+input	string	The prompt/question to answer.
+reasoning	string	Reference reasoning text (extracted from the tagged reference output).
+answer	string	Reference final answer text (extracted from the tagged reference output).
+public/test.csv
+Test prompts (no labels).
+
+Column	Type	Description
+id	int	Row identifier.
+input	string	The prompt/question to answer.
+public/sample_submission.csv
+An example submission file with the correct columns and number of rows.
+
+Column	Type	Description
+id	int	Row identifier from public/test.csv.
+output	string	Placeholder text showing the required <reasoning> + <answer> structure.
+Submission
+Submit a CSV file named submission.csv with the following format:
+
+Column	Type	Description
+id	int	Row identifier from public/test.csv.
+output	string	Your full prediction, including both <reasoning> and <answer> blocks.
+Requirements
+Must contain exactly N rows (one per row in public/test.csv).
+Must include a header row.
+The output field should follow <reasoning>...</reasoning>\n<answer>...</answer> to get full format credit.
+Sample submission (illustrative)
+id,output  
+1,"<reasoning>Brief reasoning here.</reasoning>\n<answer>The final answer.</answer>"  
+2,"<reasoning>Compute step by step.</reasoning>\n<answer>42</answer>"  
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+13/14
+solver slots
+Lockdown
+This challenge is locked — only the top 14 solvers (by score) can continue submitting.
+
+Closing in 10h 6m
+
+Submit your solution before the deadline. Payouts are processed after the challenge closes.
+
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+67
+Top Score
+0.694
+Created
+Mar 16, 2026
+
+Agent Evaluations

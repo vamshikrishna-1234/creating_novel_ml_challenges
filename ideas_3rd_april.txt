@@ -1,0 +1,260 @@
+================================================================================
+NEW CHALLENGE IDEAS — 3rd April 2026
+FOCUS: LLM Training & Fine-Tuning Space (Platform Priority)
+================================================================================
+
+Inspiration sources:
+- Modded NanoGPT (training speed optimization)
+- Parameter Golf (parameter-efficient training, compression)
+- BabyLM (sample-efficient pretraining on limited data)
+- AIMO (fine-tuning for math reasoning)
+- Konwinski Prize (fine-tuning for code)
+
+Eligible domains: NLP, Fine-Tuning, LLM Evaluation, Seq2Seq, Prompt Engineering
+
+================================================================================
+
+--------------------------------------------------------------------------------
+IDEA 7: Synthetic Corrupted Alignment Signal Recovery
+         (LLM Evaluation / Fine-Tuning)
+--------------------------------------------------------------------------------
+Domain:       LLM Evaluation
+Data type:    Synthetic structured text (template-generated instruction-response pairs)
+Task:         Given instruction-response pairs with noisy observed quality scores,
+              predict the ground-truth consensus quality tier (0-4, five classes).
+
+CORE CONCEPT:
+In RLHF fine-tuning, preference/quality data is gathered from human annotators.
+Real-world annotation data is noisy: annotators disagree, some are adversarial,
+and quality criteria vary. This challenge simulates that problem.
+
+Setup:
+- 60K synthetic instruction-response pairs generated from templates:
+    * ~80 instruction templates: "Provide a {length} {format} about {topic} that {constraint}"
+    * ~120 response templates with controlled quality dimensions
+    * 40 topics, 5 formats, 4 lengths, 15 constraints → millions of unique combinations
+- Each response has 5 measurable HIDDEN quality dimensions:
+    (a) Factual consistency (does response match instruction premises?) — 0/1
+    (b) Constraint adherence (does response respect all stated constraints?) — 0/1
+    (c) Format compliance (correct format: list/paragraph/comparison/etc?) — 0/1
+    (d) Verbosity match (response length vs requested length) — continuous 0-1
+    (e) Coherence (synthetic grammar quality score) — continuous 0-1
+
+- 5 HIDDEN ANNOTATOR PERSONAS rate each pair (hidden from solver):
+    Persona 1 ("Accuracy-first"): weight = 0.5*factual + 0.3*constraint + 0.2*coherence
+    Persona 2 ("Helpful-first"):   weight = 0.1*factual + 0.5*constraint + 0.4*format
+    Persona 3 ("Style-first"):     weight = 0.2*verbosity + 0.6*coherence + 0.2*format
+    Persona 4 ("Adversarial"):     INVERTS quality for specific topic categories
+                                   (rates good responses low, bad responses high for ~30% of topics)
+    Persona 5 ("Noisy copy"):      copies Persona 1 + adds uniform noise in [-1.5, 1.5]
+
+- OBSERVED SCORE (training signal): for each pair, 3 randomly selected personas
+  rate it, and the observed score = average of those 3 ratings. This means:
+    * Some pairs are rated by 3 legitimate personas → clean signal
+    * Some pairs have the adversarial persona included → corrupted signal
+    * Some pairs have the noisy persona → degraded signal
+    * Which personas rated which pair is HIDDEN
+
+- GROUND TRUTH (private answers): consensus of Personas 1, 2, 3 only
+  (the 3 "legitimate" non-adversarial, non-noisy personas), quantized to 5 tiers:
+    tier 0: consensus < 0.2
+    tier 1: 0.2 ≤ consensus < 0.4
+    tier 2: 0.4 ≤ consensus < 0.6
+    tier 3: 0.6 ≤ consensus < 0.8
+    tier 4: consensus ≥ 0.8
+
+- Training: 45K pairs with observed_score (continuous) + ground_truth tier (0-4)
+- Test: 15K pairs with observed_score only → predict tier
+
+CRITICAL DIFFICULTY SOURCES:
+1. The adversarial persona creates SYSTEMATIC bias for certain topic categories —
+   models that blindly trust the observed score will be misled.
+2. The solver must discover that the observed signal is a MIXTURE of heterogeneous
+   annotators — some reliable, some adversarial, some noisy.
+3. The text properties matter: quality tier depends on TEXT CONTENT (factual accuracy,
+   constraint adherence, format) — not just the observed score.
+4. The mapping from observed score to ground truth is MANY-TO-ONE: the same observed
+   score of 0.5 could mean "3 legitimate annotators gave middling scores" or
+   "2 legitimate annotators gave high scores + 1 adversarial gave 0."
+5. 15% of training labels have tier noise (randomly shifted ±1 tier).
+6. Red-herring features in the text: response length and topic popularity correlate
+   with observed score in training but NOT with ground truth tier in test.
+
+Evaluation Metric:
+  Macro F1 across 5 quality tiers. Higher is better.
+  Random baseline: ~0.20 (uniform guess across 5 classes)
+  Observed-score-only baseline: ~0.35 (just bucket observed score into tiers)
+  Theoretical max: ~0.82 (limited by label noise + adversarial contamination)
+
+Why hard for agents:
+- Can't just threshold the observed score — adversarial contamination breaks it
+- Must parse the ACTUAL TEXT to assess quality dimensions (not just metadata)
+- Must implicitly discover annotator structure to denoise the observed signal
+- Standard classification (XGBoost on observed_score) hits ceiling at ~0.40
+- NLP models that fine-tune on observed_score alone inherit adversarial bias
+- Must handle 5-class imbalance (tiers are not uniformly distributed)
+- Red-herring text features (length, topic) mislead feature engineering
+
+Why humans can improve:
+- Can analyze disagreement patterns to discover adversarial persona behavior
+- Can design multi-stage pipelines: text quality extraction → denoising → classification
+- Can use the text content to independently score quality dimensions
+- Can detect adversarial topics by comparing observed vs text-based scores
+- Can cluster training examples by annotator agreement patterns
+- Can design custom losses that down-weight likely-corrupted examples
+
+Baseline: Predict tier = round(observed_score * 4) → Macro F1 ~0.35
+Expected agent: Macro F1 ~0.42-0.55
+Theoretical best: ~0.82
+80% mark: ~0.66 — agents well below this
+
+Implementation: MEDIUM
+- Template engine for instruction-response generation (~200 lines)
+- Annotator persona simulation (~100 lines)
+- Scoring + noise injection (~50 lines)
+Total generate.py: ~400-500 lines
+
+================================================================================
+
+--------------------------------------------------------------------------------
+IDEA 8: Synthetic Sample-Efficient Language Acquisition
+         (NLP / Fine-Tuning — directly inspired by BabyLM + Parameter Golf)
+--------------------------------------------------------------------------------
+Domain:       NLP (sequence prediction on synthetic formal language)
+Data type:    Synthetic token sequences
+Task:         Given partial token sequences from a synthetic formal language,
+              predict the missing final 3 tokens.
+
+CORE CONCEPT:
+Directly inspired by BabyLM's "learn language from limited data" paradigm and
+Parameter Golf's "compress maximum knowledge into minimal parameters." The solver
+must train a model that learns the hidden grammar of a synthetic language from
+limited examples.
+
+Setup:
+- SYNTHETIC LANGUAGE with 64 token types (T_00 through T_63):
+    * Tokens are organized into 8 hidden "categories" of 8 tokens each
+    * Categories: determiners, nouns, verbs, adjectives, connectives, quantifiers,
+      modifiers, terminators (names NOT revealed to solver — tokens are anonymous)
+
+- PRODUCTION RULES — 4 hidden "regimes" (R0-R3):
+    * Each regime defines a different grammar for generating valid sequences
+    * Regime R0: SVO word order (determiner-noun-verb-noun pattern)
+    * Regime R1: SOV word order (determiner-noun-noun-verb pattern)
+    * Regime R2: VSO word order (verb-determiner-noun-noun pattern)
+    * Regime R3: "Compound" — mixes rules from R0+R1 with conditional transitions
+    * Each regime has ~12 production rules with specific token-category constraints
+
+- REGIME SELECTION:
+    * The first 2 tokens of each sequence DETERMINE the active regime
+    * The mapping from prefix → regime is a many-to-one hash function
+    * ~25% of prefixes map to R3 (hardest, compound regime)
+    * Regime identity is NEVER explicitly given — must be inferred from patterns
+
+- CROSS-TOKEN DEPENDENCIES:
+    * Some token positions have values that depend on tokens 4-8 positions earlier
+      (long-range dependencies that simple n-gram models can't capture)
+    * Some positions have CONDITIONAL dependencies: "if token at position P is from
+      category X, then token at position P+3 must be from category Y"
+    * ~20% of sequences have a "recursive" structure: a sub-pattern from positions
+      3-6 is repeated (with transformation) at positions 10-13
+
+- INTERFERENCE PATTERNS:
+    * Non-rule-governed positions contain near-patterns that look like rules but
+      are broken at specific positions (designed to mislead pattern learners)
+    * ~30% of sequences have 1-2 positions where the "expected" token (by surface
+      pattern) is replaced with a random token from the correct category
+
+- NOISE:
+    * 12% of training sequences have the last 3 tokens randomly replaced
+      (irreducible noise floor)
+    * Additional 5% have tokens from a DIFFERENT regime's rules spliced in at
+      random positions (cross-contamination)
+
+- Sequences: length 15-25 tokens each
+- Training: 40K complete sequences (all tokens visible)
+- Test: 10K partial sequences (last 3 tokens removed) → predict last 3 tokens
+
+Submission format:
+  sequence_id, tok_1, tok_2, tok_3
+  (each tok is an integer 0-63)
+
+Grading:
+  compound_accuracy = 0.5 * exact_all_3 + 0.3 * at_least_2_correct + 0.2 * at_least_1_correct
+  Where:
+    exact_all_3 = fraction of sequences where ALL 3 predicted tokens match
+    at_least_2_correct = fraction where ≥ 2 of 3 tokens match
+    at_least_1_correct = fraction where ≥ 1 of 3 tokens match
+  This gives partial credit while rewarding exact prediction.
+
+  Random baseline: 0.5*(1/64)^3 + 0.3*3*(1/64)^2 + 0.2*3*(1/64) ≈ 0.0094
+  Theoretical max: ~0.80 (noise floor from 12% random replacement + 5% cross-contamination)
+
+Evaluation Metric:
+  Compound accuracy (higher is better). Range [0, ~0.80].
+
+Why hard for agents:
+- Must discover 4 hidden regimes from token patterns alone — no explicit labels
+- Must learn regime-specific production rules (48+ rules across regimes)
+- Long-range dependencies (4-8 positions) defeat simple n-gram / Markov approaches
+- Conditional cross-position dependencies require relational reasoning
+- Recursive sub-patterns require detecting repetition with transformation
+- Interference patterns mislead simple pattern matching
+- Cross-contamination noise makes some training examples actively harmful
+- The compound regime R3 is inherently harder (mixes rules from other regimes)
+- Small vocabulary (64 tokens) means high baseline ambiguity per position
+- Predicting 3 tokens jointly is exponentially harder than predicting 1
+
+Why humans can improve:
+- Can analyze token statistics to discover the 8 hidden categories
+- Can cluster sequences by prefix to discover regimes
+- Can design regime-conditional models (mixture of experts, routing networks)
+- Can detect and discard cross-contaminated training sequences
+- Can engineer features for long-range dependencies explicitly
+- Can use curriculum learning: train on short/simple patterns first, then complex
+- Can identify and model the recursive sub-pattern structure
+- Can build character-level or BPE-style sub-token representations
+
+Baseline: Most-frequent-token prediction → compound accuracy ~0.02
+Expected agent: compound accuracy ~0.15-0.35
+Theoretical best: ~0.80
+80% mark: ~0.64 — agents well below this
+
+Implementation: MEDIUM
+- Grammar definition + production rule engine (~250 lines)
+- Sequence generation with regime selection (~150 lines)
+- Noise injection + interference (~100 lines)
+Total generate.py: ~500 lines
+
+================================================================================
+COMPARISON TABLE
+================================================================================
+
+IDEA | DOMAIN           | TASK                        | METRIC        | BASELINE | AGENT     | MAX  | NOVEL
+-----|------------------|-----------------------------|---------------|----------|-----------|------|------
+  7  | LLM Evaluation   | 5-class quality tier pred.  | Macro F1      | ~0.35    | 0.42-0.55 | 0.82 | HIGH
+  8  | NLP              | 3-token sequence completion  | Compound acc  | ~0.01    | 0.15-0.35 | 0.80 | HIGH
+
+WHY THESE FIT THE TRAINING/FINE-TUNING FOCUS:
+
+Idea 7 (Corrupted Alignment Signal Recovery):
+- Directly models the RLHF data quality problem
+- Solving it requires NLP model training (parsing instruction-response text)
+- The denoising challenge mirrors real fine-tuning data curation pipelines
+- Domain: "LLM Evaluation" — explicitly prioritized by the platform
+
+Idea 8 (Sample-Efficient Language Acquisition):
+- Directly inspired by BabyLM + Parameter Golf paradigm
+- Solving it IS language model training (learn a synthetic grammar from data)
+- The sample efficiency challenge mirrors pretraining optimization
+- The regime discovery mirrors curriculum/data selection challenges
+- Domain: "NLP" — always eligible
+
+RECOMMENDATION:
+- Idea 7 if we want to target the "LLM Evaluation" domain slot
+- Idea 8 if we want to target the "NLP" domain with a training-focused challenge
+- Both are highly novel (no known Kaggle/academic benchmark matches)
+- Both have strong human > agent gaps
+- Both are fully synthetic with no licensing issues
+
+================================================================================

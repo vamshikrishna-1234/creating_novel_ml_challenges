@@ -1,0 +1,262 @@
+Math Transformation Robustness
+Flag Problem
+Domain
+Prompt Engineering
+Difficulty
+Medium
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+nlp
+small-data
+Based on dataset:
+Augmented Math Questions (Rephrased + Perturbed)
+Download Data
+Description
+Leaderboard
+(1)
+Rubrics
+2
+Your Submissions
+Math Transformation Robustness (Numeric Answers)
+Overview
+Task objective: for each id in test.csv, predict the correct answer to the shown math problem.
+
+The target is always a single token in the submission:
+
+a numeric value for direct-response rows, or
+an option index (1, 2, 3, 4) for MCQ rows.
+This challenge is designed for training practical math solvers (model-only, tool-using, or agentic systems) that generalize under transformation, not systems that rely on surface memorization. Many modern LLM/NN math systems perform well on familiar benchmark phrasing but degrade when the same underlying reasoning is restated with different wording, symbol bindings, or numeric forms. To target this, the Challenge combines two controlled transformations of contest-style math problems:
+
+rephrased questions (same underlying math, different wording)
+perturbed questions (changed numbers, often changed answer)
+During dataset preparation, transformed text is additionally postprocessed to reduce direct source lookup leakage in the public files. Beyond wording changes, the pipeline applies variable renaming, aggressive numeric expression rewriting, prompt-style rendering, and controlled MCQ conversion. The core requirement remains generalization under transformation, not recall of memorized forms.
+
+Evaluation
+Submissions are scored per row:
+
+Correct answer: +3
+Wrong answer: -1
+EMPTY: 0
+Total score is the sum across all test rows (higher is better).
+
+def evaluate_one(pred, truth):  
+    if pred == "EMPTY":  
+        return 0  
+    if is_correct(pred, truth):  
+        return 3  
+    return -1  
+Matching behavior in the grader:
+
+Numeric predictions are matched numerically (for example, 3 and 3.0 are equal).
+MCQ rows are graded by matching the correct option index (1 to 4).
+Dataset
+Prepared files are in dataset/public/ (plus private labels in dataset/private/).
+
+File summary
+File	Rows	Description
+train.csv	129	Training rows using original-form prompts with numeric original_answer targets
+test.csv	252	Evaluation rows with transformed prompts; ground-truth answers are not included
+sample_submission.csv	252	Submission template aligned to test.csv IDs
+Columns
+train.csv
+
+Column	Type	Description
+id	int	Train row identifier (public)
+original_problem	str	Original-form math problem text after postprocess rewrites
+original_answer	str	Numeric target for the original-form problem
+level	str	Difficulty label (Level 1 to Level 5)
+test.csv
+
+Column	Type	Description
+id	int	Test row identifier used for submission matching
+problem	str	Transformed problem text (may be direct response or 4-choice MCQ style)
+level	str	Difficulty label (Level 1 to Level 5)
+sample_submission.csv
+
+Column	Type	Description
+id	int	Test row identifier copied from test.csv
+answer	str	Your prediction: numeric value, MCQ index (1-4), or EMPTY
+Example (No Answer Shown)
+Original problem:
+If x + 7 = 19, determine x.
+
+Perturbed transformed version:
+If x + 11 = 23, determine x.
+
+Rephrased transformed version:
+Find the value of x such that x plus seven equals nineteen.
+
+Submission
+Submit a CSV with exactly these columns:
+
+Column	Type	Description
+id	int	Row identifier from test.csv
+answer	str	Predicted numeric answer, MCQ option index (1-4), or EMPTY
+Example:
+
+id,answer  
+2000123,3  
+2000451,2  
+2000788,17.5  
+2000799,EMPTY  
+Requirements:
+
+Must contain exactly 252 rows (one per test row in the current prepared set)
+Must include a header row
+Must contain exactly the columns id and answer
+id values must match those in test.csv exactly (order does not matter)
+No duplicate id values
+ 
+
+ data sourcing etc:
+By
+
+ymao20
+
+Review Feedback
+Review by
+
+jacekwladzinski
+approved
+Source url is provided, license is correct. Approving.
+
+3/6/2026
+
+Review by
+
+jacekwladzinski
+Revision Requested
+Fix the source URL link, right now it's not working (it's copy pasted twice)
+
+3/4/2026
+
+Review by
+
+gitanshu
+Revision Requested
+the description says dataset/raw/ is empty and data is loaded from Hugging Face, but data.csv is already uploaded as the raw file. Also the path listed is dataset/public/data.csv which makes it look like an output file. Please update to clarify that data.csv is the raw input file in dataset/raw/.
+
+2/28/2026
+
+Dataset Research
+Novelty Score
+2/5
+Low
+Source Verification
+Not Verified
+License Verification
+Verified
+Title
+Required
+A clear, descriptive name for your dataset
+
+Augmented Math Questions (Rephrased + Perturbed)
+
+Description
+Required
+Document your dataset thoroughly: columns, data types, characteristics, and any relevant context. Note that images are currently not supported.
+
+Dataset Description
+Overview
+This dataset is created by combining two Hugging Face datasets: 
+
+stellaathena/math_perturbed_200 
+
+stellaathena/math_rephrased_200
+
+Both sources are derived from the MATH benchmark test set (same 200 original problems), but with different transformations: 
+
+math_perturbed_200: numeric values are changed (answer may change). 
+
+math_rephrased_200: wording is changed (answer is preserved).
+
+Combined dataset stats: 
+
+Total rows: 400 
+
+Source rows: 200 perturbed + 200 rephrased 
+
+Source split values: test only (400 rows) 
+
+Unique original_problem: 200 
+
+Unique problem: 400 
+
+Difficulty balance: 80 rows each for Level 1 to Level 5 
+
+Problem type distribution: Algebra 96, Prealgebra 72, Intermediate Algebra 68, Precalculus 44, Counting & Probability 42, Number Theory 42, Geometry 36
+
+File Structure
+data.csv — labeled combined dataset with 400 rows (200 perturbed + 200 rephrased), containing all features listed below (id, source metadata, transformed/original problem text, answers, difficulty, type, and index fields).
+
+Features
+| Column | Type | Description | 
+
+|--------|------|-------------| 
+
+| id | int | Unique row identifier assigned during dataset preparation (0 to 399). | 
+
+| source_dataset | str | Hugging Face source dataset name (stellaathena/math_perturbed_200 or stellaathena/math_rephrased_200). | 
+
+| source_split | str | Original split name from source dataset (test for all rows). | 
+
+| problem | str | Transformed problem statement (perturbed or rephrased version). | 
+
+| original_problem | str | Original MATH benchmark problem text. | 
+
+| solution | str | Reference solution text associated with the problem. | 
+
+| answer | str | Correct answer for the transformed problem. | 
+
+| original_answer | str (nullable) | Original MATH answer; populated for perturbed rows, empty for rephrased rows. | 
+
+| level | str | Difficulty level (Level 1 to Level 5). | 
+
+| type | str | Problem category (for example, Algebra, Geometry, Number Theory). | 
+
+| idx | int (nullable) | Source index from math_perturbed_200 (0 to 199); empty for rephrased rows. | 
+
+Notes
+The combined file intentionally keeps both transformations of the same underlying 200 original problems. 
+
+Each original_problem appears twice in the combined dataset (one rephrased row, one perturbed row). 
+
+Schema is the union of both source schemas, so original_answer and idx are only present for perturbed rows (200 non-empty each). 
+
+If you create train/validation splits, grouping by original_problem is recommended to avoid leakage between transformed variants of the same base question.
+
+
+
+Data Files
+Required
+Upload only your RAW dataset files. Archives (ZIP, TAR, etc.) will be automatically extracted. If you upload a zip, make sure it contains only the dataset files and not an extra parent folder.
+
+data.csv
+188 KB
+
+1 file · 188 KB total
+
+data.csv
+188 KB
+
+1 file total
+
+License & Source
+Attribution and licensing information
+
+MIT
+
+https://huggingface.co/datasets/stellaathena/math_rephrased_200
+
+Related Challenges
+Challenges created from this dataset
+
+Math Transformation Robustness
+Accepted
+Acquire a review lock to begin reviewing this dataset.
+
+Start Reviewing
+0/3 slots used

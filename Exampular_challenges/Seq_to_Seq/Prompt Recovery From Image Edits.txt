@@ -1,0 +1,171 @@
+Prompt Recovery from Image Edits
+Overview
+The objective of this competition is to predict the natural-language edit instruction that transformed a source image into a target image.
+
+This formulation is important because many modern editing systems rely on instruction supervision, yet high-quality paired supervision is expensive and sparse. A model that can reliably recover instructions from before/after visual evidence can improve dataset auditing, synthetic instruction generation, and instruction-grounded training pipelines.
+Unlike standard image-editing benchmarks that map prompts to edited images, this challenge is novel in requiring free-form recovery of the editing instruction from source image, inpainting mask, and target image, jointly testing visual reasoning and natural-language generation.
+
+Each sample contains:
+
+a source image
+an edit mask
+a target image
+Participants must infer the most likely natural-language prompt for each hidden test sample.
+
+Evaluation
+Submissions are evaluated using mean TF-IDF cosine similarity between predicted prompts and hidden ground-truth prompts.
+
+Official row-level metric code (given two texts):
+
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+from sklearn.metrics.pairwise import cosine_similarity
+
+def row_similarity(ground_truth: str, prediction: str) -> float:
+
+    gt = str(ground_truth).strip().lower()
+
+    pred = str(prediction).strip().lower()
+
+    if not gt or not pred:
+
+        return 0.0
+
+    if gt == pred:
+
+        return 1.0
+
+    vectorizer = TfidfVectorizer()
+
+    tfidf_matrix = [vectorizer.fit](http://vectorizer.fit)_transform([gt, pred])
+
+    score = float(cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:2])[0][0])
+
+    return max(0.0, min(1.0, score))
+
+Final submission score is the mean of row_similarity(...) across all test rows.
+
+Scoring behavior:
+
+Score range is [0, 1].
+Higher is better.
+Empty or invalid prompt predictions score 0 for that row.
+Exact text match after normalization scores 1.
+Dataset
+The dataset contains:
+
+500 public training examples
+250 hidden-label test examples
+All images are PNG files.
+
+Each example has three aligned image files:
+
+<index>_source.png
+<index>_mask.png
+<index>_target.png
+File Structure
+
+dataset/
+
+  public/
+
+    train/
+
+      <index>_source.png
+
+      <index>_mask.png
+
+      <index>_target.png
+
+      ...
+
+    test/
+
+      <index>_source.png
+
+      <index>_mask.png
+
+      <index>_target.png
+
+      ...
+
+    train.csv
+
+    test.csv
+
+    sample_submission.csv
+
+Public file notes:
+
+public/train.csv: id,source_image,mask_image,target_image,prompt
+public/test.csv: id,source_image,mask_image,target_image
+public/sample_submission.csv: id,prompt template
+Features
+No extra tabular metadata is provided.
+
+Available inputs are:
+
+source image
+mask image
+target image
+Target output is:
+
+prompt text
+Submission Format
+Required CSV header:
+
+
+id,prompt
+
+Rules:
+
+exactly 250 prediction rows
+no missing id
+no duplicate id
+IDs must match test IDs exactly
+prompt must be in free-form natural language text
+Valid example:
+
+
+id,prompt
+
+test_0001,replace the red car with a blue car
+
+test_0002,add snow on the mountains
+
+test_0003,remove the person on the left
+
+Important Notes
+This is a prompt generation/retrieval task from image edits.
+Submissions are checked for schema and exact ID alignment.
+Keep predictions concise and instruction-like for best metric performance.
+Using Vision Lange Models is allowed.
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+86
+Top Score
+0.334
+Created
+Mar 17, 2026

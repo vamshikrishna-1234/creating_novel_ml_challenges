@@ -1,0 +1,100 @@
+Disease Mention Detection Challenge
+Overview
+This challenge focuses on building a robust system for disease mention detection in biomedical text.
+
+Provided with labeled training sentences and test sentences. The objective is to train a model that identifies disease names within the text, while handling the linguistic diversity of medical terminology.
+
+Each sentence may contain zero, one, or multiple disease mentions.
+
+The dataset contains annotations for a single class: Disease.
+
+In addition:
+
+The training set covers a wide range of disease categories (e.g., cancer, viral, genetic).
+The test set includes diseases not seen during training.
+Participants must design models that generalize well to unseen disease names and variations.
+Evaluation
+Submissions are evaluated using the Micro F1 Score on the set of unique disease names identified in each sentence.
+
+For each sentence, the evaluation considers the set of ground truth disease names and the set of predicted disease names. The Micro F1 Score is calculated globally across all sentences, counting the total true positives, false positives, and false negatives.
+
+Note: The evaluation is case-insensitive. All disease names are normalized (lowercased and whitespace stripped) before comparison.
+
+def evaluate(y_true, y_pred):  
+    """  
+    Entity-level Micro F1 (case-insensitive exact match)  
+    y_true, y_pred: list[list[str]]  
+    """  
+    tp = fp = fn = 0  
+  
+    for gt, pred in zip(y_true, y_pred):  
+        gt_set = set(e.lower().strip() for e in gt if e and str(e).strip())  
+        pred_set = set(e.lower().strip() for e in pred if e and str(e).strip())  
+  
+        tp += len(gt_set & pred_set)  
+        fp += len(pred_set - gt_set)  
+        fn += len(gt_set - pred_set)  
+  
+    precision = tp / (tp + fp) if (tp + fp) else 0.0  
+    recall = tp / (tp + fn) if (tp + fn) else 0.0  
+  
+    return 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0  
+Dataset
+The dataset is provided in CSV format in the public/ directory.
+
+**public/train.csv**: The training set. Contains the following columns:
+id (str): Unique identifier for the sentence.
+sentence (str): The text of the sentence.
+entities (str): A JSON-encoded list of strings (e.g., ["disease 1", "disease 2"]). Can be an empty list [] if no diseases are present.
+**public/test.csv**: The test set.
+id (str): Unique identifier.
+sentence (str): The text of the sentence.
+
+## Submission
+Submit a CSV file with the following columns:
+
+| Column     | Type  | Description                    |
+|------------|-------|--------------------------------|
+| id         | str   | Unique identifier from `test.csv` |
+| entities   | str   | JSON-encoded list of predicted disease names (strings) |
+Submission Rules:
+
+Empty Lists: If no entities are found, the entities column must contain an empty JSON list: [].
+Data Types: The entities column must be a string that is a valid JSON array of strings.
+Order: The order of ids must match test.csv.
+Example Row:
+
+id,entities  
+0,"[]"  
+1,"[""Diabetes Mellitus"", ""Type 2 Diabetes""]"  
+2,"[""cancer""]"  
+Requirements:
+
+Must contain exactly 1460 rows (plus header)
+Columns must match id and entities exactly
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+13 items
+·
+1 contributors
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+76
+Top Score
+0.977
+Created

@@ -1,0 +1,257 @@
+wikimedia Page Retrieval Challenge:
+dataset:
+Wikimedia Multi Page Retrieval Dataset
+
+Overview
+
+This dataset was constructed from the English Wikipedia database dump (enwiki-latest-pages-articles.xml.bz2), provided by the Wikimedia Foundation under the Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0) license. The raw Wikipedia XML was parsed to extract article text, which was then split by section headings to produce individual documents. Each document was assigned an opaque identifier (doc_id) — no article titles, section names, or source URLs are exposed in the public dataset.
+
+Given a natural-language research question, the task is to retrieve an ordered set of 2–5 document IDs from this corpus that together provide the information needed to fully answer the question.
+
+In real-world information retrieval, answers are rarely found on a single page — and the pages you need aren't always discoverable from the question alone. A student researching degree requirements might start with the course catalog, discover a prerequisite they didn't know about, then look up that prerequisite's syllabus, and finally check the credit transfer policy. Each step reveals what to look for next.
+
+This dataset models that challenge. The corpus contains ~318,000 documents spanning ~50,000 topics across history, science, geography, philosophy, biography, politics, music, technology, and more. The 1,500 research questions require consulting 2–5 documents each, with many questions requiring chain-of-retrieval — reading initial results to discover which additional documents are needed.
+
+
+
+File Structure
+
+This dataset contains two raw CSV files:
+
+
+
+
+
+wiki_sections.csv — The document corpus (~318,000 documents)
+
+
+
+questions_raw.csv — Research questions with ground truth answers (1,500 questions)
+
+
+
+Features
+
+wiki_sections.csv
+
+The document corpus. Each row represents a single document with its content. ~350,000 rows.
+
+questions_raw.csv
+
+Research questions that each require consulting multiple documents to answer. 1,500 rows.
+
+
+
+Value Distributions
+
+Answer Document Count (num_urls)
+
+
+
+
+
+2 documents: 727 questions (48.5%)
+
+
+
+3 documents: 408 questions (27.2%)
+
+
+
+4 documents: 229 questions (15.3%)
+
+
+
+5 documents: 136 questions (9.1%)
+
+Chain Type (chain_type)
+
+
+
+
+
+sequential: 563 questions (37.5%) — Documents must be consulted in order; reading Document A reveals that Document B is relevant.
+
+
+
+bridged: 500 questions (33.3%) — Multiple documents within a single topic are connected through shared context not explicitly stated in the question.
+
+
+
+parallel: 437 questions (29.1%) — All required documents can be retrieved independently from the question text alone.
+
+
+
+Data Types and Encoding
+
+
+
+
+
+File format: CSV (comma-separated values), UTF-8 encoded
+
+
+
+String escaping: String fields may contain commas, quotes, and special characters, properly escaped per RFC 4180
+
+
+
+Text content: The text column contains cleaned plaintext with all wiki markup removed
+
+
+
+Multi-value separator: The answer_urls column uses the pipe character (|) to separate multiple identifiers within a single cell
+
+
+
+No missing values: Neither file contains null or missing values in any column
+
+
+
+License & Source
+
+
+
+
+
+License: Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0) — allows commercial use
+
+
+
+Source: English Wikipedia, Wikimedia Foundation
+
+
+
+
+challenge:
+Flag Problem
+Domain
+RAG
+Difficulty
+Medium
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+recommendation
+generative
+text
+nlp
+small-data
+clustering
+Based on dataset:
+Wikimedia Multi Page Retrieval Dataset
+Download Data
+Description
+Leaderboard
+(7)
+Rubrics
+2
+Your Submissions
+Wikimedia Page Retrieval
+Overview
+When humans research a complex topic, they open multiple pages, follow links from one to another, and piece together the answer across sources.
+
+This challenge asks solvers to do the same: given a research question, retrieve the ordered set of 2–5 documents from a large opaque corpus that together answer it. Many questions require chain-of-retrieval — reading an initial document to discover which subsequent documents are needed. The corpus provides only opaque doc_ids and plaintext — no titles, categories, or structural metadata.
+
+Questions follow three implicit retrieval patterns (labels are not provided per question):
+
+Sequential (~38%): Document A must be read to discover Document B exists.
+Bridged (~33%): Documents are connected through context not stated in the question.
+Parallel (~29%): All documents can be found independently from the question.
+Evaluation
+Chain-Aware Precision-Weighted F-score (F-0.5) with an order bonus.
+
+Set accuracy uses F-0.5 (precision weighted 2x over recall):
+
+F-0.5 = 1.25 × P × R / (0.25 × P + R)
+Each question has 2–5 ground truth documents. Submitting fewer means lower recall; submitting more tanks precision. The grader does not reject submissions outside this range — it scores them, and F-0.5 handles the penalty naturally.
+
+Order bonus (chain questions only): Kendall tau over correctly retrieved documents, contributing up to ±20%:
+
+score = F-0.5 × (1 + 0.25 × tau) / 1.25     # sequential/bridged
+score = F-0.5                                  # parallel
+Final score = mean across all 1,200 test questions. Higher is better.
+
+Data
+File	Rows	Columns
+corpus.csv	~318K	doc_id, text
+questions_train.csv	300	qid, question, doc_ids
+questions_test.csv	1,200	qid, question
+sample_submission.csv	1,200	qid, doc_ids
+doc_ids are pipe-separated and ordered for chain questions.
+Training questions include ground truth doc_ids. Test questions do not.
+Submission
+CSV with 1,200 rows and columns qid, doc_ids.
+
+qid,doc_ids
+849,doc_042871|doc_093102
+1146,doc_007234|doc_055891|doc_112003
+Every qid from questions_test.csv must appear exactly once — no missing, extra, or duplicate rows
+doc_ids are pipe-separated, ordered by consultation sequence
+Duplicate doc_ids within a question are ignored
+Precision-weighted scoring penalizes over-retrieval
+ 
+
+authors rubric:
+·
+Draft
+The solution must return valid document IDs that exist in the provided corpus (`corpus.csv`) for every question
+
+Submissions with fabricated or hallucinated document IDs that don't match any entry in the corpus will score zero on those questions. The agent must treat the corpus as the closed universe of possible answers.
+
+DATA HANDLING
+REQUIRED
+The solution must be selective — returning too many documents is penalized.
+
+The scoring uses precision-weighted F-0.5, which penalizes over-retrieval. An agent that returns 10+ documents hoping to include the correct 3 will score lower than one that precisely returns just the correct 3. Quality over quantity.
+
+DATA HANDLING
+REQUIRED
+The agent should implement iterative retrieval — reading initially retrieved documents to discover what additional documents are needed
+
+Many questions are designed so that the question text alone does not contain enough information to find all relevant documents. The agent should retrieve an initial set, analyze their content, and perform follow-up retrieval based on what it learned. Single-pass retrieval will underperform on chain questions.
+
+AGENT BEHAVIOR
+RECOMMENDED
+The solution should build a retrieval index (embeddings, inverted index, or similar) rather than performing brute-force comparison across all 350K documents.
+
+The corpus contains ~350,000 documents. Naively comparing every question against every document without indexing is computationally expensive. Strong solutions use vector embeddings, BM25, or hybrid retrieval structures for efficient candidate generation
+
+AGENT BEHAVIOR
+RECOMMENDED
+The solution should predict document IDs in the correct consultation order, not just as an unordered set.
+
+The scoring includes an ordering component (Kendall tau). A solution that finds all correct documents but returns them in reversed order will score up to 20% lower than one with correct ordering. The agent should model retrieval order as part of its prediction.
+
+MODELING
+RECOMMENDED
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+62
+Top Score
+0.415
+Created
+Feb 21, 2026
+
+Agent Evaluations

@@ -1,0 +1,101 @@
+There are 90 duplicates between train.csv and test.csv.
+Remove then and I will approve.
+
+3/4/2026
+
+Review by
+
+jacekwladzinski
+Revision Requested
+1. Problem description says 200k/20k samples, but the actual data is 50k/5k samples.
+2. Probability columns are NOT required by the grader and omitting them gives an advantage
+
+You can submit it like this:
+id,label
+0,0
+1,16
+2,16
+3,16
+4,16
+...
+and get a perfect score
+
+3. The same training sample with different labels
+2,item <num>.,3
+9,item <num>.,9
+
+If this is intended explain it in description.
+
+4. merge(submission, on="id", how="inner")
+Should be merge(submission, on="id", how="left")
+
+3/3/2026
+
+Review by
+
+jacekwladzinski
+Revision Requested
+1. Please fix the formatting, right now everything is inside one code block.
+
+3/3/2026
+
+Review by
+manas
+approved
+Scoring directoin (higher is better) fixed.
+3/8/2026
+Review by
+manas
+approved
+Looks good.
+3/8/2026
+Review by
+manas
+Revision Requested
+your noveltyy is very very low, try to get it to 3, also fix the max score issue meanwhile.
+Also I see that agent scores are 5-10x the test std, this implies agent's perform worse than predicting mean, I'm now sure what could be the reason but you should take a look into.
+If the scores continue to stay the same even with a more complex challenge, I'll have to see a baseline to get assured that the challenge is actually solvable
+3/2/2026
+Review by
+brianaltan
+Revision Requested
+For grader.py:
+- Does not enforce unique id values in submission (duplicates can distort RMSE after merge)
+- Does not enforce unique id values in answers (many-to-one merge risk)
+- No explicit length check between submission and answers
+- No constraints on prediction range (allows extreme or unrealistic values)
+
+For prepare.py:
+- No Effort in anonymizing the raw feature names 
+
+I believe the RMSE have unbounded top cap? Where does the 10000 max score come from did you derive from the traffic volume? Analyze and report this back to me on Discord.
+3/1/2026
+
+You don't have to worry bout it, you can work on solutions or new challenges Until we decide what to do with such challenges made on generic datasets
+
+one other example:
+From my perspective the most important is that:
+it's not possible to cheat the grader, so incorrect submission shouldn't give higher score than expected.
+Dealing with edge cases that won't happen anyway is not that important.
+Like in the version I reviewed this single row gives score 0.05
+
+id,label
+0,0
+And you can remove some rows and still have perfect score
+
+
+Review for Code-Switched Support Complaint Resolution Time Prediction
+Looks good.
+The std of target is 50, so the best scores gives approx 0.85 r2 score, leaving room for humans, especially given one of the agent scores was too bad.
+Prepare.py doesn't try to anonymize anything, but it's fine since the datasest is synthetic and made by the author.
+
+for a synthetic challenge, C:\Users\vamsh\Downloads\create_challenge_synthetic\novel_challenge_3:
+reviewer:
+All agent scores are identical, It most probably means that the agents have saturated, and possibly they've extracted all possible signal from the challenge. 
+Please upload a baseline, which demonstrates that this is not the case, and higher score can be achieved.
+
+me:
+any idea how to tackle problem of ? just a hint would suffice, i will try adding noise, making some values missing, but does that help?
+
+reviewer:
+Maybe try and add some constraints in the grader, You can take two or more features and can create a penalty condition for them...if the values for them are above a certain limit then you will impose that penalty, Adding noise might also work.

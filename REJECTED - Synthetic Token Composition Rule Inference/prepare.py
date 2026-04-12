@@ -1,0 +1,101 @@
+from pathlib import Path
+
+
+def prepare(raw: Path, public: Path, private: Path) -> None:
+    import random as _rnd
+    import numpy as np
+    import pandas as pd
+
+    raw, public, private = Path(raw), Path(public), Path(private)
+    data = pd.read_csv(raw / "data.csv")
+    data = data.sort_values("id").reset_index(drop=True)
+
+    rng = _rnd.Random(1509602442)
+    np_rng = np.random.RandomState(42)
+
+    all_real_tokens = sorted(
+        {t for inp in data["input_tokens"] for t in inp.split()}
+    )
+
+    n_real = len(all_real_tokens)
+    n_decoy = 10
+    all_labels = [f"T_{i:02d}" for i in range(n_real + n_decoy)]
+    rng.shuffle(all_labels)
+
+    token_rename = {
+        orig: all_labels[i] for i, orig in enumerate(all_real_tokens)
+    }
+    decoy_pool = all_labels[n_real:]
+
+    combos = sorted(data["input_tokens"].unique().tolist())
+    rng_split = _rnd.Random(4277998674)
+    rng_split.shuffle(combos)
+
+    split_idx = int(len(combos) * 0.8)
+    train_combos = list(combos[:split_idx])
+    test_combos = list(combos[split_idx:])
+
+    tokens_in_train = set()
+    for combo in train_combos:
+        tokens_in_train.update(combo.split())
+    missing = set(all_real_tokens) - tokens_in_train
+
+    if missing:
+        for tok in sorted(missing):
+            for i, combo in enumerate(test_combos):
+                if tok in combo.split():
+                    test_combos.append(train_combos.pop())
+                    train_combos.append(test_combos.pop(i))
+                    break
+
+    train_set = set(train_combos)
+    test_set = set(test_combos)
+
+    train_df = data[data["input_tokens"].isin(train_set)].copy()
+    test_df = data[data["input_tokens"].isin(test_set)].copy()
+    train_df = train_df.sort_values("id").reset_index(drop=True)
+    test_df = test_df.sort_values("id").reset_index(drop=True)
+
+    def obfuscate(inp):
+        tokens = inp.split()
+        renamed = [token_rename[t] for t in tokens]
+        n_dec = rng.randint(1, 2)
+        renamed.extend(rng.sample(decoy_pool, n_dec))
+        rng.shuffle(renamed)
+        return " ".join(renamed)
+
+    train_df["input_tokens"] = train_df["input_tokens"].apply(obfuscate)
+    test_df["input_tokens"] = test_df["input_tokens"].apply(obfuscate)
+
+    for df in [train_df, test_df]:
+        n = len(df)
+        df["feat_1"] = np_rng.normal(0, 1, n).round(3)
+        df["feat_2"] = np_rng.uniform(0, 100, n).round(2)
+        df["feat_3"] = np_rng.exponential(2.0, n).round(3)
+        df["priority"] = np_rng.randint(1, 6, n)
+
+    train_df = train_df.reset_index(drop=True)
+    train_df["id"] = range(len(train_df))
+    test_df = test_df.reset_index(drop=True)
+    test_df["id"] = range(len(train_df), len(train_df) + len(test_df))
+
+    public.mkdir(parents=True, exist_ok=True)
+    private.mkdir(parents=True, exist_ok=True)
+
+    train_cols = [
+        "id", "input_tokens", "feat_1", "feat_2", "feat_3", "priority",
+        "output",
+    ]
+    test_cols = [
+        "id", "input_tokens", "feat_1", "feat_2", "feat_3", "priority",
+    ]
+
+    train_df[train_cols].to_csv(public / "train.csv", index=False)
+    test_df[test_cols].to_csv(public / "test.csv", index=False)
+
+    most_common_output = test_df["output"].mode().iloc[0]
+    sample = test_df[["id"]].copy()
+    sample["output"] = most_common_output
+    sample.to_csv(public / "sample_submission.csv", index=False)
+
+    test_df[["id", "output"]].to_csv(private / "answers.csv", index=False)

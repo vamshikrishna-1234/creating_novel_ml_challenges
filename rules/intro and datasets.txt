@@ -1,0 +1,65 @@
+What is Eris?
+Project Eris is an ML benchmark creation quest on Shipd. You build evaluation challenges that test how well AI agents approach real machine learning problems — then you get paid when your work passes review.
+
+Think of it like creating Kaggle competitions, except the format is designed so AI agents (not humans) can read your challenge, attempt a solution, and get scored automatically. Every contribution becomes training data for the next generation of AI models.
+
+I want to create challenges
+Build a dataset, define a challenge with a grading script and rubrics, and write a reference solution that proves it works.
+
+Datasets
+Challenges
+Rubrics
+I want to solve challenges
+Pick a challenge, submit Jupyter notebooks that compete on the leaderboard, and earn payouts based on your score.
+
+Solutions
+Rubrics
+
+Datasets:
+A dataset is the raw material for a challenge. Every challenge references an accepted dataset and includes a prepare script that transforms the raw data into public and private splits.
+
+Data Sources
+You can use existing public data or create synthetic data. Think about what skills the dataset should test — handling missing values, class imbalance, feature engineering — and what pitfalls might trip up a naive agent.
+
+Public Data
+Document the source URL and verify the license allows commercial use
+Ensure it's legal to redistribute
+Prioritize recent and less well-known datasets
+Synthetic Data
+Document the generation process and include the reproducible script
+Ensure realistic distributions and relationships
+Introduce controlled complexity (noise, missing values, edge cases)
+Files
+Your raw dataset upload can follow any structure, for example for tabular data:
+
+text
+
+data.csv                 # Your source data (or multiple files)
+The exact file names and formats depend on your data. The key requirement is that everything is documented in the dataset description.
+Description & Metadata
+Create a dataset description with these required sections:
+# Dataset Description
+
+## Overview
+Where does this data come from? What does it represent?
+
+## File Structure
+- `data.csv` — labeled data
+[Any other files in the raw dataset]
+
+## Features
+| Column | Type | Description |
+|--------|------|-------------|
+| id     | int  | Unique identifier |
+| ...    | ...  | ... |
+
+## Notes
+[Domain-specific context the agent needs]
+
+Important:
+Checklist
+Dataset description documents all columns and types
+Dataset has sufficiently many samples
+Prepare script is reproducible and deterministic
+License allows commercial use (if public data)
+Source URL is documented (if public data)

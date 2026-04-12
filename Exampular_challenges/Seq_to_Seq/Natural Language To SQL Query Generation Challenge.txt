@@ -1,0 +1,106 @@
+Overview
+In many enterprise data systems, analytical requests must ultimately be expressed as precise SQL queries that conform exactly to the database schema. Unlike conversational interfaces where approximate answers may suffice, production relational databases enforce strict structural correctness: every referenced table, column, and constraint must exist exactly as defined.
+
+This challenge evaluates schema-grounded query construction, where models must translate natural language requests into SQL statements using only the identifiers explicitly provided in the schema definition.
+
+The key difficulty arises from Identifier Drift. Human language frequently refers to schema elements through paraphrases or semantic equivalents (e.g., “yearly income” vs. annual_revenue). However, relational databases operate under strict token matching: any deviation from the defined schema results in invalid queries. Models must suppress semantic substitution and instead perform schema-constrained generation, selecting only identifiers that appear in the provided schema context.
+
+To enforce this constraint, all table and column names in the dataset have been systematically masked using deterministic identifiers (e.g., id_a13f4c). This removes any reliance on prior knowledge of domain semantics and forces models to derive the correct query structure directly from the schema definitions.
+
+The objective is therefore not merely to approximate the intent of a query, but to produce a syntactically exact SQL statement whose identifiers and structure are fully grounded in the supplied schema. This benchmark tests whether models can perform reliable query synthesis in environments where schema fidelity is mandatory and semantic guessing is penalized.
+
+ 
+
+Dataset
+The dataset consists of thousands of distinct schema-query pairs, specifically curated from a diverse Enterprise SQL Synthesis Corpus (derived from 78k+ samples) to enforce grounding and prevent hallucinations. Unlike traditional Text-to-SQL datasets where schema identifiers retain semantic meaning, this novel dataset removes semantic cues entirely through deterministic identifier masking, forcing models to rely exclusively on structural reasoning rather than lexical similarity.
+
+Dataset Statistics
+Total Samples: 78,576
+Training Set: 62,927 samples
+Test Set: 15,649 samples (30% Public / 70% Private)
+Domain Diversity: Covers 15+ industrial sectors including Finance, Healthcare, Logistics, and E-commerce.
+Complexity Partition: 40% Simple (Single table), 35% Moderate (JOINs/GROUP BY), 25% Complex (Subqueries/Nested Logic)
+ 
+
+Dataset Files
+**train.csv**: The primary training corpus containing sql_id, schema_context, natural_language_query, and the ground-truth sql_query.
+**test.csv**: The evaluation set containing features only: sql_id, schema_context, and natural_language_query.
+**sample_submission.csv**: A reference format for valid submissions.
+ 
+
+Features
+| Column | Type | Description |
+|---|---|---|
+| `sql_id` | String | Cryptographic UID for the SQL task instantiation (12-char hex). |
+| `schema_context` | String | Formal DDL statements defining tables, keys, and column constraints. |
+| `natural_language_query` | String | The human-authored analytical intent, aligned with schema nomenclature. |
+| `sql_query` | String | **TRAIN ONLY.** The gold-standard executable SQL string. |
+ 
+
+Submission Format
+Submit a standard CSV file. Ensure your generated SQL is placed in the sql_query column corresponding to the sql_id.
+
+Submission Columns
+**sql_id** (String): Must match the IDs provided in test.csv.
+**sql_query** (String): The generated SQL query corresponding to the prompt.
+[!IMPORTANT]
+Do NOT include backticks or quotes around the SQL string in your CSV unless they are part of the literal SQL syntax. The example below uses backticks only for markdown visual clarity.
+
+Raw CSV Example (submission.csv):
+
+| sql_id | sql_query |
+| :--- | :--- |
+| bec5c4d2c6ee | `SELECT id_decf07 FROM id_7637f3 WHERE id_bb4f82 > 100` |
+| 19a83a03c206 | `SELECT COUNT(*) FROM id_aa83a0 ...` |
+ 
+
+Evaluation
+Submissions are scored using Normalized Syntax Accuracy.
+
+The grading pipeline acts as a virtual "Execution Proxy" by applying the following deterministic normalization steps before comparison:
+
+Case Normalization: Converts all SQL keywords and identifiers to lowercase.
+Comment Removal: Strips both single-line (--) and multi-line (/* ... */) SQL comments.
+Whitespace Collapsing: Replaces all newlines, tabs, and multiple spaces with a single space to ignore formatting variations.
+Semicolon Stripping: Removes trailing semicolons from the end of the query.
+A prediction is considered "Correct" only if the normalized string matches the ground truth exactly.
+
+Syntax Accuracy
+=
+Correct Normalized queries
+Total queries
+Syntax Accuracy= 
+Total queries
+Correct Normalized queries
+​
+ 
+
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+104
+Top Score
+0.804
+Created
+Mar 14, 2026
+
+Agent Evaluations

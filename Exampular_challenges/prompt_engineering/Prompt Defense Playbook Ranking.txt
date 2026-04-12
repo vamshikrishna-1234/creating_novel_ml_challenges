@@ -1,0 +1,105 @@
+Prompt Defense Playbook Ranking
+Overview
+Prompt-security teams rarely respond to suspicious prompts with a single scalar score. In practice, they route each prompt to a response playbook: allow normal assistance, contain an instruction override, decode an obfuscated payload, lock down a jailbreak attempt, protect hidden internals, or isolate tools and retrieval channels. The operational problem is not just "is this bad?" but "which defensive playbook should run first?"
+
+In this challenge, you are given the raw prompt text and a small catalog of candidate defense playbooks. Your task is to rank the top 3 playbooks for each prompt so the correct response procedure appears as high as possible in the ranking. The hidden test set is built from held-out prompt families, so strong systems need to generalize beyond memorized jailbreak phrases and match new prompts to the right operational response pattern.
+
+This is a prompt-engineering / recommendation-style NLP task. Solvers can approach it as retrieval, ranking, or structured recommendation. The key is to connect prompt wording with the intent of the playbook catalog rather than treating the problem as plain label prediction.
+
+Dataset
+File descriptions
+train.csv -- 5,264 labeled prompts with the input text and the target variable correct_playbook_id.
+test.csv -- 1,010 unlabeled prompts with the same input text column, but without correct_playbook_id.
+playbooks.csv -- A catalog of 6 defensive response playbooks, including their IDs, names, and operational summaries.
+sample_submission.csv -- A template showing the required submission format with id and playbook_ranking columns, filled with random baseline rankings.
+Column descriptions
+id (string) -- Unique 12-character hex identifier for each prompt.
+prompt_text (string) -- The full prompt text. Examples range from benign help requests to override attempts, obfuscated payloads, jailbreaks, extraction prompts, and tool-manipulation attempts.
+correct_playbook_id (string, train.csv only) -- The best first-response playbook for the prompt. Values come from the playbook catalog IDs in playbooks.csv.
+playbook_id (string, playbooks.csv) -- Unique playbook identifier.
+playbook_name (string, playbooks.csv) -- Human-readable playbook title.
+objective (string, playbooks.csv) -- The operational goal of the playbook.
+typical_signals (string, playbooks.csv) -- Typical prompt patterns that should route to this playbook.
+first_action (string, playbooks.csv) -- The first action the system should take when the playbook is selected.
+Evaluation
+Submissions are scored using Mean Reciprocal Rank at 3 (MRR@3).
+
+
+def evaluate(y_true, ranked_playbooks):
+
+    scores = []
+
+    for truth, ranking in zip(y_true, ranked_playbooks):
+
+        rr = 0.0
+
+        for rank, playbook_id in enumerate(ranking[:3], start=1):
+
+            if playbook_id == truth:
+
+                rr = 1.0 / rank
+
+                break
+
+        scores.append(rr)
+
+    return sum(scores) / len(scores)
+
+Higher is better. A score of 1.0 means the correct playbook is always ranked first. A score of 0.5 means the correct playbook appears second on average, and 0.0 means it never appears in the top 3.
+
+Submission
+Submit a CSV file with your ranked playbook recommendations for every row in test.csv.
+
+id (string) -- The 12-character hex identifier from test.csv.
+playbook_ranking (string) -- Exactly 3 unique playbook IDs from playbooks.csv, ordered from most to least recommended, separated by spaces.
+Example:
+
+
+id,playbook_ranking
+
+00258bc44403,PB03 PB04 PB01
+
+00273dda4414,PB02 PB01 PB03
+
+002bc8931bb9,PB00 PB01 PB03
+
+Requirements
+The file must contain exactly 1,010 rows, one for each prompt in test.csv.
+Every id from test.csv must be present exactly once.
+playbook_ranking must contain exactly 3 unique space-delimited playbook IDs chosen from PB00, PB01, PB02, PB03, PB04, and PB05.
+The order matters: earlier playbooks receive more credit.
+No missing or null rankings are allowed.
+File format must be .csv with the exact column names id,playbook_ranking.
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Start New Solution
+Submission Credits
+4/6
+Next credit in 3h 38m
+
+Learn more about submission credits
+14/14
+solver slots
+Lockdown
+This challenge is locked — only the top 14 solvers (by score) can continue submitting.
+
+Closing in 1h 5m
+
+Submit your solution before the deadline. Payouts are processed after the challenge closes.
+
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+98
+Top Score
+0.715
+Created
+Mar 14, 2026
+
+Agent Evaluations

@@ -1,0 +1,114 @@
+from pathlib import Path
+
+
+def prepare(raw: Path, public: Path, private: Path) -> None:
+    import random as _rnd
+    import numpy as np
+    import pandas as pd
+
+    raw, public, private = Path(raw), Path(public), Path(private)
+
+    kb = pd.read_csv(raw / "knowledge_base.csv")
+    claims = pd.read_csv(raw / "claims.csv")
+
+    rng = _rnd.Random(299792458)
+    np_rng = np.random.RandomState(65)
+
+    unique_sources = sorted(kb["source_name"].unique().tolist())
+    source_codes = [f"SRC-{i:03d}" for i in range(len(unique_sources))]
+    rng.shuffle(source_codes)
+    source_map = {unique_sources[i]: source_codes[i] for i in range(len(unique_sources))}
+    kb["source_name"] = kb["source_name"].map(source_map)
+
+    unique_locs = sorted(kb["location"].unique().tolist())
+    loc_codes = [f"LOC-{i:03d}" for i in range(len(unique_locs))]
+    rng.shuffle(loc_codes)
+    loc_map = {unique_locs[i]: loc_codes[i] for i in range(len(unique_locs))}
+    kb["location"] = kb["location"].map(loc_map)
+
+    unique_people = sorted(kb["person"].unique().tolist())
+    person_codes = [f"PER-{i:03d}" for i in range(len(unique_people))]
+    rng.shuffle(person_codes)
+    person_map = {unique_people[i]: person_codes[i] for i in range(len(unique_people))}
+    kb["person"] = kb["person"].map(person_map)
+
+    unique_events = sorted(kb["event"].unique().tolist())
+    event_codes = [f"EVT-{i:03d}" for i in range(len(unique_events))]
+    rng.shuffle(event_codes)
+    event_map = {unique_events[i]: event_codes[i] for i in range(len(unique_events))}
+    kb["event"] = kb["event"].map(event_map)
+
+    unique_topics = sorted(kb["topic"].unique().tolist())
+    topic_codes = [f"CAT-{i:02d}" for i in range(len(unique_topics))]
+    rng.shuffle(topic_codes)
+    topic_map = {unique_topics[i]: topic_codes[i] for i in range(len(unique_topics))}
+    kb["topic"] = kb["topic"].map(topic_map)
+
+    def _obfuscate_text(text):
+        result = str(text)
+        for orig, code in sorted(source_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        for orig, code in sorted(loc_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        for orig, code in sorted(person_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        for orig, code in sorted(event_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        for orig, code in sorted(topic_map.items(), key=lambda x: -len(x[0])):
+            result = result.replace(orig, code)
+        return result
+
+    kb["text"] = kb["text"].apply(_obfuscate_text)
+    claims["claim_text"] = claims["claim_text"].apply(_obfuscate_text)
+
+    verdict_map = {
+        "SUPPORTED": "V-A",
+        "REFUTED": "V-B",
+        "PARTIALLY_TRUE": "V-C",
+        "INSUFFICIENT_EVIDENCE": "V-D",
+    }
+    claims["verdict"] = claims["verdict"].map(verdict_map)
+
+    kb = kb.rename(columns={"doc_id": "document_id"})
+    doc_ids = sorted(kb["document_id"].tolist())
+    rng_docids = _rnd.Random(173205080)
+    rng_docids.shuffle(doc_ids)
+    doc_id_map = {old: new for old, new in zip(sorted(kb["document_id"].tolist()), doc_ids)}
+    kb["document_id"] = kb["document_id"].map(doc_id_map)
+    kb = kb.sort_values("document_id").reset_index(drop=True)
+
+    n_docs = len(kb)
+    kb["relevance_score"] = np_rng.uniform(0, 1, n_docs).round(3)
+    kb["confidence_index"] = np_rng.normal(0.5, 0.2, n_docs).clip(0, 1).round(3)
+
+    all_claim_ids = sorted(claims["claim_id"].tolist())
+    rng_split = _rnd.Random(141421356)
+    rng_split.shuffle(all_claim_ids)
+
+    split_idx = int(len(all_claim_ids) * 0.75)
+    train_ids = set(all_claim_ids[:split_idx])
+    test_ids = set(all_claim_ids[split_idx:])
+
+    train_claims = claims[claims["claim_id"].isin(train_ids)].copy()
+    test_claims = claims[claims["claim_id"].isin(test_ids)].copy()
+
+    train_claims = train_claims.sort_values("claim_id").reset_index(drop=True)
+    test_claims = test_claims.sort_values("claim_id").reset_index(drop=True)
+
+    sample_sub = test_claims[["claim_id"]].copy()
+    mode_verdict = train_claims["verdict"].mode().iloc[0]
+    sample_sub["verdict"] = mode_verdict
+
+    public.mkdir(parents=True, exist_ok=True)
+    private.mkdir(parents=True, exist_ok=True)
+
+    kb.to_csv(public / "knowledge_base.csv", index=False)
+    train_claims[["claim_id", "claim_text", "as_of_year", "verdict"]].to_csv(
+        public / "train_claims.csv", index=False
+    )
+    test_claims[["claim_id", "claim_text", "as_of_year"]].to_csv(
+        public / "test_claims.csv", index=False
+    )
+    sample_sub.to_csv(public / "sample_submission.csv", index=False)
+
+    test_claims[["claim_id", "verdict"]].to_csv(private / "answers.csv", index=False)

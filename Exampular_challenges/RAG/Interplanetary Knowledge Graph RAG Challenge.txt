@@ -1,0 +1,136 @@
+The Meridian Codex: Multi-Hop Reasoning over an Interplanetary Knowledge Graph
+Category: RAG | Difficulty: Hard | Score: 0.0–1.0 (maximize)
+
+Overview
+The Meridian Compact is a fictional interplanetary confederation spanning 60 star systems, 45 political factions, and centuries of governance history. Its knowledge is stored across a fragmented knowledge graph (4,491 nodes, 16,153 edges) and a corpus of 4,370 natural language archive documents drawn from seven institutional archives: Diplomatic Archives, Personnel Records, Legal Codex, Historical Chronicles, Trade Registry, Scientific Archives, Colonial Registry, Organizational Directory, and Xenological Encyclopedia.
+
+Your task is to build a Retrieval-Augmented Generation (RAG) system that answers complex multi-hop questions about the Meridian Compact by retrieving relevant information from the knowledge graph and document corpus, then reasoning across multiple pieces of evidence to produce a correct answer.
+
+Questions range from 2-hop lookups ("Which star system is governed by the faction that Kael Voss belongs to?") to 5-hop chains requiring traversal across persons, organizations, technologies, resources, colonies, and star systems. The dataset also includes temporal reasoning questions (filtering by year ranges), aggregation questions (counting entities), and negation questions (identifying entities that lack certain relationships).
+
+This is not a simple retrieval task. Naive keyword search will fail on multi-hop questions because the answer entity is never co-mentioned with the question entity in any single document. Agents must chain evidence across multiple retrieved passages or traverse the knowledge graph structure to arrive at the correct answer.
+
+Evaluation
+Submissions are scored using Token-level F1 (SQuAD-style):
+
+For each question, the predicted and ground-truth answers are normalized (lowercased, punctuation removed, articles stripped), then tokenized. F1 is computed over the token overlap:
+
+precision = |common_tokens| / |predicted_tokens|
+recall    = |common_tokens| / |ground_truth_tokens|
+F1        = 2 * precision * recall / (precision + recall)
+
+The final score is the mean F1 across all 500 test questions. Higher is better. A perfect score is 1.0.
+
+def evaluate(y_true, y_pred):
+    """
+    y_true: list of ground-truth answer strings
+    y_pred: list of predicted answer strings
+    Returns: mean token-level F1 score
+    """
+    import re, string
+    from collections import Counter
+    import numpy as np
+
+    def normalize(text):
+        text = str(text).lower()
+        text = re.sub(r"\b(a|an|the)\b", " ", text)
+        text = text.translate(str.maketrans("", "", string.punctuation))
+        return " ".join(text.split()).strip()
+
+    def token_f1(pred, gt):
+        p_tok = normalize(pred).split()
+        g_tok = normalize(gt).split()
+        if not g_tok and not p_tok:
+            return 1.0
+        if not g_tok or not p_tok:
+            return 0.0
+        common = Counter(p_tok) & Counter(g_tok)
+        nc = sum(common.values())
+        if nc == 0:
+            return 0.0
+        prec = nc / len(p_tok)
+        rec = nc / len(g_tok)
+        return 2 * prec * rec / (prec + rec)
+
+    return float(np.mean([token_f1(p, g) for p, g in zip(y_pred, y_true)]))
+
+Dataset
+File Structure
+public/
+├── knowledge_graph/
+│   ├── nodes.jsonl          # 4,491 KG nodes (entities)
+│   └── edges.jsonl          # 16,153 KG edges (relationships)
+├── corpus/
+│   └── documents.jsonl      # 4,370 natural language archive documents
+├── train.jsonl              # 1,000 training questions WITH answers
+├── test.jsonl               # 500 test questions WITHOUT answers
+├── sample_submission.csv    # Example submission format
+└── dataset_stats.json       # Summary statistics
+
+private/
+└── answers.csv              # Ground truth answers for test questions
+
+Knowledge Graph Schema
+Node Types (12):
+
+Type Count Key Attributes StarSystem 60 name, sector, population, climate_class, discovery_year Colony 400 name, founding_year, population, status Faction 45 name, ideology, founding_year, member_count Person 1,500 name, role, species, birth_year Law 800 name, domain, enacted_year, status Treaty 250 name, signed_year, status, scope Resource 70 name, resource_type, scarcity Technology 300 name, domain, discovery_year, danger_level Event 500 name, event_type, year, location, severity Organization 300 name, org_type, founded_year, mandate Species 75 name, traits, avg_lifespan TradeRoute 200 name, established_year, status, danger_rating
+
+Edge Types (26): GOVERNS, ALLIED_WITH, HOSTILE_TO, COLONIZED, LOCATED_IN, MEMBER_OF, WORKS_AT, BORN_IN, AUTHORED, DISCOVERED, NEGOTIATED, CAUSED, INVOLVED_IN, REPRESENTED, ENACTED, SIGNED, PARTICIPATED_IN, REGULATES, PROHIBITS, SUPERSEDES, REQUIRES, EXPORTS, IMPORTS, HEADQUARTERED_IN, LED_BY, OVERSEES, ENFORCES, SPONSORS, TRIGGERED, CONNECTS, PRIMARILY_TRADES, HOMEWORLD, ADMINISTERS, REPRESENTS
+
+Document Corpus
+Each document is a natural language passage derived from a subgraph of the KG, organized by archive:
+
+Archive Description Approx. Count Diplomatic_Archives Faction profiles & treaty records ~295 Personnel_Records Person dossiers ~1,500 Legal_Codex Law records ~800 Historical_Chronicles Event narratives ~500 Trade_Registry Trade route bulletins ~200 Scientific_Archives Technology reports ~300 Colonial_Registry Colony entries ~400 Organizational_Directory Organization directories ~300 Xenological_Encyclopedia Species encyclopedias ~75
+
+Question Types
+Type Count (Train) Count (Test) Hops Description multi_hop_2 ~267 ~133 2 Two-step reasoning chains multi_hop_3 ~267 ~133 3 Three-step reasoning chains multi_hop_4 ~200 ~100 4 Four-step reasoning chains multi_hop_5 ~100 ~50 5 Five-step reasoning chains temporal ~67 ~33 1-2 Temporal filtering by year ranges aggregation ~67 ~33 1 Counting entities with specific properties negation ~33 ~17 1 Identifying absence of relationships
+
+Submission
+Submit a CSV file named submission.csv with the following format:
+
+Column Type Description question_id string Question identifier from test.jsonl (e.g., TEST-00001) answer string Predicted answer text
+
+Requirements:
+
+Must contain exactly 500 rows (one per test question)
+Include header row
+Each question_id must match an ID from test.jsonl
+No duplicate question_id values
+The answer column should contain the predicted entity name or value
+Example:
+
+question_id,answer
+TEST-00001,Vega Prime
+TEST-00002,Solari Concord
+TEST-00003,42
+...
+
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+92
+Top Score
+0.896
+Created
+Mar 15, 2026
+
+Agent Evaluations

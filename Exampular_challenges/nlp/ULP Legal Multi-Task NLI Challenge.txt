@@ -1,0 +1,187 @@
+
+
+
+ULP Legal Multi-Task NLI Challenge
+
+
+
+data:
+By
+
+bhargavaram007
+
+Review Feedback
+Review by
+
+manas
+approved
+looks good
+
+3/5/2026
+
+Dataset Research
+Novelty Score
+4/5
+High
+Source Verification
+Not Verified
+License Verification
+Verified
+Title
+Required
+A clear, descriptive name for your dataset
+
+ULP Legal Reasoning Pairs
+
+Description
+Required
+Document your dataset thoroughly: columns, data types, characteristics, and any relevant context. Note that images are currently not supported.
+
+Dataset Description
+Overview
+This dataset contains paired legal-text examples created for ULP (User Legal Problems) NLP tasks.
+The base text pairs originate from public settlement and litigation case records—specifically, structured summaries of class-action settlements, consumer complaints, and employment disputes compiled from legal information repositories and court documentation sources.
+These records were extracted, deduplicated, and standardized into a premise–hypothesis format through a curation pipeline (text normalization, schema harmonization, and label consistency checks).
+After curation, deterministic feature engineering was applied to derive cross-text targets (stance classification, legal reasoning typing, outcome inference) and surface-level statistical features (word counts, overlap ratios, linguistic markers).
+Each row includes a legal premise (case summary), a user-style hypothesis statement (perspective response), and derived columns supporting NLP tasks such as NLI classification, stance detection, legal sub-issue typing, and outcome inference.  
+
+File Structure
+data.csv — primary raw dataset file (single-table source for challenge preparation), containing curated text pairs plus features and 4 target columns
+
+Features
+Notes
+This description covers only the raw dataset file and raw artifacts.  
+
+No train/test split description is included here.  
+
+The 4 prediction targets require NLP understanding of both premise and hypothesis text.  
+
+label is the NLI relationship; the other 3 targets are derived from cross-text semantic analysis.  
+
+Surface features (word counts, overlap, etc.) provide minimal signal for targets — text understanding is required.
+
+
+
+Data Files
+Required
+Upload only your RAW dataset files. Archives (ZIP, TAR, etc.) will be automatically extracted. If you upload a zip, make sure it contains only the dataset files and not an extra parent folder.
+
+data.csv
+422 KB
+
+1 file · 422 KB total
+
+data.csv
+422 KB
+
+1 file total
+
+License & Source
+Attribution and licensing information
+
+Apache License 2.0
+
+https://huggingface.co/datasets/darrow-ai/LegalLensNLI
+
+Related Challenges
+Challenges created from this dataset
+
+ULP Legal Multi-Task NLI Challenge
+Accepted
+Acquire a review lock to begin reviewing this dataset
+
+
+link:https://huggingface.co/datasets/darrow-ai/LegalLensNLI
+Overview
+This challenge requires predicting 4 aspects of legal dispute text pairs using natural language understanding. Each test sample is a premise (legal case summary) paired with a hypothesis (user perspective statement). You must predict:
+
+label — Natural Language Inference relationship (Entailed, Neutral, Contradict). Does the hypothesis follow from, contradict, or have no bearing on the premise?
+hypothesis_stance — Fine-grained stance of the hypothesis writer toward the legal situation (~20 classes combining awareness level and emotional tone, e.g., oblivious_dismissive, informed_anxious, suspicious_uneasy). Requires understanding both what the writer knows about the situation and how they feel about it.
+legal_reasoning_type — Specific legal sub-issue classification with cross-text alignment (~28 classes, e.g., biometric_collection_aligned, data_breach_implicit, robocall_violation_aligned). Requires understanding the legal violation type from the premise AND whether the hypothesis references the same domain.
+case_outcome_inference — Inferred case outcome from combining premise settlement stage with hypothesis writer's relationship to the outcome (~23 classes, e.g., final_indifferent, agreed_uncertain, pending_harmed). Requires cross-text inference about resolution status and personal impact.
+Why This Is Hard: These targets are not solvable from metadata or simple statistics. They require genuine NLP understanding of both texts: what happened legally (premise), what the person experienced (hypothesis), and how these relate. Surface features like word counts or settlement amounts provide marginal signal at best.
+
+Real-World Context: The dataset represents paired legal summaries and user narratives from class-action settlements, regulatory complaints, and employment disputes. Understanding these relationships is essential for legal case triage, automated dispute analysis, and compliance risk assessment.
+
+Evaluation
+Submissions are scored using Average Macro-Averaged F1 Score across all 4 targets (higher is better, max = 1.0).
+
+Scoring Formula:
+
+Score = (F1_label + F1_stance + F1_legal_reasoning + F1_outcome) / 4  
+Each F1 is computed independently using macro-averaging (equal weight per class, not per sample).
+
+Why this metric?
+
+Macro F1 penalizes models that only predict common classes — rare classes count equally.
+With 20-28 classes per fine-grained target, random guessing scores ~2-5% per target.
+The 4-target average means strong performance requires NLP across all tasks simultaneously.
+Overall random baseline: ~10% F1. Majority-class baseline: ~5-8% F1.
+from sklearn.metrics import f1_score  
+import numpy as np  
+  
+def evaluate(y_true_list, y_pred_list):  
+    scores = []  
+    for y_true, y_pred in zip(y_true_list, y_pred_list):  
+        all_labels = sorted(set(y_true) | set(y_pred))  
+        f1 = f1_score(y_true, y_pred, labels=all_labels, average="macro", zero_division=0.0)  
+        scores.append(f1)  
+    return np.mean(scores)  
+Dataset
+Prepared Files
+After preparation, your downloaded dataset contains:
+
+public/
+
+train.csv — Labeled training data (249 samples) with all features and all 4 target columns
+test.csv — Unlabeled test data (63 samples), features only, no target columns
+sample_submission.csv — Example submission format
+Feature Columns (in both train.csv and test.csv):
+
+Column	Type	Description
+id	int	Row identifier (0-indexed)
+premise	string	Legal case summary text
+hypothesis	string	User's perspective response text
+legal_act	string	Legal category (privacy, tcpa, consumer_protection, wage)
+premise_word_count	int	Word count of premise
+hypothesis_word_count	int	Word count of hypothesis
+premise_char_count	int	Character count of premise
+hypothesis_char_count	int	Character count of hypothesis
+premise_hypothesis_word_ratio	float	premise_word_count / hypothesis_word_count
+text_complexity_band	string	Complexity level (short, medium, long)
+premise_sentence_count	int	Sentence count in premise
+hypothesis_sentence_count	int	Sentence count in hypothesis
+word_overlap_ratio	float	Lexical word overlap between premise and hypothesis
+premise_has_monetary_reference	bool	Does premise mention dollar amounts?
+premise_has_date_reference	bool	Does premise contain date signals?
+premise_max_settlement_usd	float	Largest settlement amount in premise (USD)
+hypothesis_has_question	bool	Does hypothesis contain questions?
+hypothesis_has_exclamation	bool	Does hypothesis contain exclamations?
+hypothesis_has_first_person	bool	Does hypothesis use first-person pronouns?
+hypothesis_has_hashtag	bool	Does hypothesis contain hashtags?
+hypothesis_uncertainty_score	int	Count of uncertainty markers
+hypothesis_negation_count	int	Count of negation words
+premise_avg_word_length	float	Average word length in premise
+hypothesis_avg_word_length	float	Average word length in hypothesis
+lexical_diversity_ratio	float	Unique words / total words in hypothesis
+Target Variables (train.csv only):
+Column	Classes	Description
+label	3 (Entailed, Neutral, Contradict)	NLI relationship between premise and hypothesis
+hypothesis_stance	~20	Awareness × tone classification of hypothesis writer
+legal_reasoning_type	~28	Legal sub-issue type × cross-text alignment
+case_outcome_inference	~23	Settlement stage × person's relationship to outcome
+Submission
+Submit a CSV file with exactly 5 columns (id + 4 targets):
+
+id,label,hypothesis_stance,legal_reasoning_type,case_outcome_inference  
+0,Entailed,oblivious_neutral,data_breach_aligned,final_indifferent  
+1,Contradict,informed_anxious,biometric_collection_implicit,agreed_uncertain  
+2,Neutral,suspicious_dismissive,sms_spam_aligned,pending_ambiguous  
+...  
+Requirements:
+
+Must contain exactly 63 rows (one per test sample)
+Include header row
+All predictions must be valid class labels from the training set
+File name: submission.csv
+ 

@@ -1,0 +1,86 @@
+Overview
+Large Language Models are increasingly used to answer questions about long financial documents such as annual reports, fund prospectuses, and corporate disclosures. However, LLM-generated answers are not always faithful to the source document — they may contain unsupported claims, incorrect figures, or fabricated details that sound plausible. In high-stakes financial contexts, even a single unfaithful claim can lead to serious consequences.
+
+The Challenge
+Your task is to build a faithfulness verifier for financial document question answering. Given a query about a financial document, the full document context, and an LLM-generated answer, you must predict whether the answer is faithful (supported by the context) or unfaithful (contains claims not supported by the context).
+
+This is fundamentally a grounding verification problem: does the answer actually follow from what the document says?
+
+Unlike typical QA evaluation benchmarks, this dataset has been carefully designed to resist surface-level shortcuts:
+
+The dataset is length-matched — faithful and unfaithful answers have similar length distributions, so answer length alone is not a useful signal.
+The task requires comparing the answer against the source context. Approaches that only analyze the answer text without referencing the context will achieve near-random performance.
+Key Difficulties
+Context lengths vary widely — from ~1,000 characters to ~30,000 characters. Your solution must handle both short and long financial documents without simply truncating.
+Financial language is domain-specific — answers may contain precise numerical claims, legal terminology, or references to specific filing sections that must be verified against the context.
+Unfaithful answers can be subtle — an answer might be mostly correct but contain one fabricated detail, a wrong number, or a misattributed claim.
+No surface-level shortcuts — the dataset is designed so that simple heuristics (answer length, perplexity, readability scores) do not discriminate between faithful and unfaithful answers.
+Stratified evaluation — your model is evaluated separately on short, medium, and long documents. Approaches that only optimize for the majority context length will be penalized.
+Dataset
+The data is provided in the dataset/ directory:
+
+train_labeled.csv: Labeled examples with columns id, query, context, answer, label
+train_unlabeled.csv: Unlabeled examples with columns id, query, context, answer
+test.csv: Test data with columns id, query, context, answer
+sample_submission.csv: Template for your submission
+Column descriptions:
+
+id: Unique identifier for each sample
+query: A question about the financial document
+context: The relevant section(s) from a financial regulatory filing. Can range from ~1K to 30K characters.
+answer: An LLM-generated response to the query given the context
+label: Binary target — 0 means the answer is faithful (supported by the context), 1 means the answer is unfaithful (contains unsupported claims)
+Evaluation Metric
+Submissions are evaluated using the Length-Stratified Harmonic Mean of ROC-AUC. This metric measures how consistently your model verifies answer faithfulness across all document lengths.
+
+How it works:
+
+Test samples are split into three buckets by context length:
+Short: context < 5,000 characters
+Medium: 5,000 <= context < 15,000 characters
+Long: context >= 15,000 characters
+ROC-AUC is computed separately for each bucket
+Your final score is the harmonic mean of the three AUC values: Score = 3 / (1/AUC_short + 1/AUC_medium + 1/AUC_long)
+Why this metric? In production financial systems, documents range from short risk-factor paragraphs to full annual reports. A faithfulness verifier that only works on short documents is unreliable. The harmonic mean ensures you cannot ignore any document-length regime — if your model achieves 0.95 AUC on long documents but only 0.55 on short ones, your score will be much lower than a model that achieves 0.80 uniformly.
+
+A perfect model scores 1.0. Random guessing scores approximately 0.5.
+
+Submission Format
+Your submission.csv must have exactly two columns:
+
+id: The unique identifier from test.csv
+label: Your predicted probability (between 0.0 and 1.0) that the answer is unfaithful
+Example:
+
+id,label a1b2c3d4e5f6,0.15 b2c3d4e5f6g7,0.89
+
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+113
+Top Score
+0.987
+Created
+Mar 16, 2026
+
+Agent Evaluations

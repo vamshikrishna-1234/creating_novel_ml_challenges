@@ -1,0 +1,103 @@
+Overview
+In this challenge, you are given sentences with a missing word represented by ____. Your task is to predict the correct word that completes each sentence.
+
+Each sentence describes a situation involving technical systems and components. The missing word corresponds to a specific component that fits the context of the sentence.
+
+Your goal is to build a model that can accurately determine which word best completes each sentence.
+
+Task
+For every sentence in the test dataset, predict the word that should replace the blank (____).
+
+The possible answers belong to a small set of system components such as:
+
+valve
+radiator
+gasket
+bearing
+Your submission should contain a predicted component for every test row.
+
+Dataset
+The challenge dataset consists of the following files.
+
+train.csv
+Contains labeled examples that you can use to train your model.
+
+Columns:
+
+ColumnDescriptionidUnique identifier for the rowtimeTimestamp associated with the observationsentenceSentence containing the missing word (____)answerThe correct component that fills the blank
+
+test.csv
+Contains sentences with missing words that must be predicted.
+
+Columns:
+
+ColumnDescriptionidUnique identifier for the rowtimeTimestamp associated with the observationsentenceSentence containing the missing word (____)
+
+The correct answers for this file are hidden and will be used to evaluate your submission.
+
+sample_submission.csv
+An example submission file showing the required format.
+
+Columns:
+
+ColumnDescriptionidRow identifieranswerPredicted word
+
+Submission Format
+Your submission must be a CSV file with the following structure:
+
+id,answer
+abc123,valve
+def456,gasket
+ghi789,bearing
+Requirements:
+
+The file must contain exactly the same IDs as test.csv.
+Each ID must appear exactly once.
+The answer column must contain your predicted word for that row.
+Evaluation
+Submissions are evaluated using classification accuracy.
+
+Accuracy
+=
+Number of Correct Predictions
+Total Predictions
+Accuracy= 
+Total Predictions
+Number of Correct Predictions
+​
+ 
+A higher accuracy indicates better performance.
+
+Important Notes
+All predictions must correspond to the IDs provided in the test dataset.
+Submissions with missing predictions, duplicate IDs, or incorrect formatting may be rejected by the grader.
+Ensure your submission follows the format shown in sample_submission.csv.
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+54
+Top Score
+0.762
+Created
+Mar 8, 2026
+
+Agent Evaluations

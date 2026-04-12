@@ -1,0 +1,209 @@
+Recovering Lost LaTeX Diagrams From Corrupted Source Files
+
+data:
+Review by
+
+orhun
+approved
+dataset license same as TikZ packages license which was used to generate the public data.
+
+3/8/2026
+
+Dataset Research
+Novelty Score
+4/5
+High
+Source Verification
+Verified
+License Verification
+Not Verified
+Title
+Required
+A clear, descriptive name for your dataset
+
+TikZ Code Generation Dataset
+
+Description
+Required
+Document your dataset thoroughly: columns, data types, characteristics, and any relevant context. Note that images are currently not supported.
+
+TikZ Code Generation Dataset
+Overview
+This dataset contains TikZ LaTeX source code paired with rendered diagram images and descriptive captions, derived from the DaTikZ-v2 corpus (https://huggingface.co/datasets/nllg/datikz-v2). Each entry represents a diagram commonly found in academic publications, including flowcharts, mathematical plots, circuit diagrams, geometric constructions, and schematic illustrations. The TikZ code has been filtered to entries between 100 and 5000 characters in length, keeping moderately complex diagrams suitable for code generation tasks.
+
+File Structure
+- raw/ -- Top-level directory containing all data
+  - raw.csv -- Maps image filenames to captions, TikZ code, and split assignments
+  - images/ -- Rendered diagram PNG images
+Features
+raw/raw.csv : 
+
+| Column | Type | Description |
+|---|---|---|
+| id | int | Unique row identifier |
+| caption | string | Descriptive caption for the diagram |
+| code | string | TikZ LaTeX source code (100-5000 characters) |
+| image_filename | string | Image filename in raw/images/ directory |
+| split | string | Data split assignment (train or test) |
+Source and License
+The dataset is curated from the public split of DaTikZ-v2 : https://huggingface.co/datasets/nllg/datikz-v2, released under the Apache License 2.0 (https://github.com/potamides/AutomaTikZ/blob/main/LICENSE). 
+
+
+
+Data Files
+Required
+Upload only your RAW dataset files. Archives (ZIP, TAR, etc.) will be automatically extracted. If you upload a zip, make sure it contains only the dataset files and not an extra parent folder.
+
+raw.zip
+42 MB
+
+1 file · 42 MB total
+
+
+raw/
+3,359 files total
+
+License & Source
+Attribution and licensing information
+
+Apache License 2.0
+
+https://huggingface.co/datasets/nllg/datikz-v2
+
+Related Challenges
+Challenges created from this dataset
+
+Recovering Lost LaTeX Diagrams From Corrupted Source Files
+Accepted
+Acquire a review lock to begin reviewing this datas
+
+challenge:
+
+Editor View
+This challenge is closed
+
+No further submissions, edits, or withdrawals are possible. 
+How payouts are processed
+
+Recovering Lost LaTeX Diagrams From Corrupted Source Files
+Flag Problem
+Domain
+Sequence To Sequence
+Difficulty
+Hard
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+image
+multimodal
+generative
+Based on dataset:
+TikZ Code Generation Dataset
+Download Data
+Description
+Leaderboard
+(6)
+Rubrics
+Your Submissions
+Recovering Lost LaTeX Diagrams From Corrupted Source Files
+Overview
+A university research archive has suffered a partial disk failure. Thousands of LaTeX source files for academic papers were recovered, but the recovery was imperfect while document preambles, package imports, and environment declarations came through intact, many of the drawing commands inside TikZ diagram environments were corrupted beyond repair. Each corrupted region has been replaced with a [MASK] placeholder.
+
+Fortunately, the compiled PDF figures survived on a separate backup drive, so the lab has a rendered PNG image and the original figure caption for every diagram. Your task is to act as an automated diagram source reconstructor: given a partially corrupted LaTeX document, the rendered target image, and the figure caption, produce the complete restored TikZ source code.
+
+This is harder than generating TikZ from scratch; you must produce code that is consistent with the surviving fragments (package choices, coordinate systems, styling conventions) while inferring the missing drawing logic from the visual output.
+
+The dataset provides 3000 training examples where both the corrupted and complete source are available. For the test set, only the corrupted source, images, and captions are provided. Predict the full restored code for each test document.
+
+Dataset
+The dataset directory contains the following files and folders:
+
+train.csv              - Training data (3000 rows)
+test.csv               - Test data (caption and image only)
+sample_submission.csv  - Example submission file with correct format
+train/                 - Directory of training PNG images
+test/                  - Directory of test PNG images
+train.csv (5 columns):
+
+| Column      | Type   | Description                                           |
+|-------------|--------|-------------------------------------------------------|
+| id          | int    | Unique row identifier                                 |
+| caption     | string | Descriptive caption for the diagram                   |
+| masked_code | string | Corrupted LaTeX source with `[MASK]` placeholders     |
+| code        | string | Ground truth complete LaTeX source code               |
+| filename    | string | Image filename in the train/ directory                |
+test.csv (4 columns) :
+
+| Column      | Type   | Description                                           |
+|-------------|--------|-------------------------------------------------------|
+| id          | int    | Unique row identifier                                 |
+| caption     | string | Descriptive caption for the diagram                   |
+| masked_code | string | Corrupted LaTeX source with `[MASK]` placeholders     |
+| filename    | string | Image filename in the test/ directory                 |
+sample_submission.csv (2 rows) :
+
+| Column | Type   | Description                        |
+|--------|--------|------------------------------------|
+| id     | int    | Row identifier matching test.csv   |
+| code   | string | Predicted complete LaTeX source    |
+Evaluation
+Submissions are scored using TikZ Structural Similarity (TSS), a composite metric that evaluates both token-level accuracy and structural command fidelity. The final score is the average per-example TSS across all test examples. Higher scores are better, with a maximum of 1.0.
+
+`TSS = 0.6 * LaTeX-BLEU-4 + 0.4 * Command-F1`  
+LaTeX-BLEU-4 is a BLEU-4 score computed with LaTeX-aware tokenization. Instead of whitespace splitting, the tokenizer splits on LaTeX command boundaries (\draw, \node, etc.), structural delimiters ({, }, (, ), ;), numeric values, and TikZ path operators (--, -|). Smoothing is applied to handle zero n-gram counts.
+
+Command-F1 is the F1 score computed over LaTeX command multisets. All command invocations (e.g., \draw, \usepackage, \node) are extracted from both the reference and predicted code, and F1 is computed with multiplicity (command frequency matters, not just presence).
+
+Submission Format (csv)
+Submit a CSV file with the following format:
+| Column | Type   | Description                        |
+|--------|--------|------------------------------------|
+| id     | int    | Row identifier from test.csv       |
+| code   | string | Predicted TikZ LaTeX source code   |
+Example Output :
+
+id,code
+0,"\documentclass{standalone}
+\usepackage{tikz}
+\begin{document}
+\begin{tikzpicture}
+\draw (0,0) -- (1,1);
+\end{tikzpicture}
+\end{document}"
+Requirements:
+
+Must contain one row per test sample
+Include header row with columns id and code
+TikZ code containing commas, newlines, or quotes must be properly quoted in the CSV (standard CSV quoting with double quotes)
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Challenge Closed
+
+This challenge is no longer accepting submissions. 
+How payouts are processed
+
+Rubric Contributions Needed
+This challenge is closed but its rubric hasn't been finalized yet. Contribute your expertise to help determine fair payouts.
+
+0 items
+·
+0 contributors
+Contribute
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+27
+Top Score
+0.687
+Created
+Mar 8, 2026
+
+Agent Evaluations

@@ -1,0 +1,125 @@
+Byte-Level LLM Pretraining: The MIPS32 Autopsy
+Flag Problem
+Domain
+Sequence To Sequence
+Difficulty
+Hard
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+text
+feature-engineering
+generative
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(6)
+Rubrics
+Your Submissions
+Overview
+In the high-stakes world of systems programming and malware analysis, an optimizing compiler acts like a destructive, one-way cryptographic hash. When high-level C code is translated to machine code using Aggressive Optimization -O3), loops are unrolled, instructions are reordered, and all human-readable semantic clues are obliterated.
+
+The Challenge: This is a foundational, from-scratch language model training challenge. You are provided with roughly 10,000 algorithmic C functions cross-compiled to the embedded MIPS32 architecture. Because standard pretrained foundation models are utterly blind to MIPS bytecode, you cannot rely on zero-shot inference, agentic wrappers, or simple fine-tuning.
+
+Your task is to train a custom byte-level language model from scratch (e.g., a custom miniature Transformer architecture, or a linear-scaling State-Space Model like Mamba) capable of ingesting raw hexadecimal machine noise and mapping it back to the exact, chronologically ordered sequence of C Standard Library calls (e.g., ["scanf", "malloc", "printf", "free"]) that the original algorithm executed.
+
+Hardware & Execution: To support the training and execution of custom foundation architectures, this challenge provisions elite compute. Your training and inference pipeline must run within the platform limits utilizing an NVIDIA H100.
+
+The Pretraining Traps (Why Standard Models Fail)
+To enforce the "train from scratch" requirement, this dataset relies on several adversarial mechanics that neutralize standard API wrappers:
+
+The Tokenizer Massacre: Standard pretrained models use Byte-Pair Encoding (BPE) optimized for human language. When fed a 2,000-character string of raw MIPS hex, standard BPE tokenizers chunk the data arbitrarily, destroying the 4-byte architectural boundaries of the instructions. You MUST build and train a custom Byte-Level Tokenizer for your model.
+The "O3" Scramble: Because the code was compiled at -O3, the sequence of library calls in the hex does not cleanly mirror the source code linearly. The compiler has vectorized math and shifted conditional branches, forcing your model to learn actual execution flow rather than simple text matching.
+Quadratic Context Choking: A single algorithmic function can produce thousands of characters of pure hexadecimal. You will need to optimize your model's attention mechanism (e.g., FlashAttention-2 on the H100) or pivot to linear-scaling architectures to prevent Out-Of-Memory errors on these massive context windows.
+Evaluation
+Submissions are evaluated using Mean Normalized Edit Distance (NED).
+
+Because you are predicting a chronological sequence of events, standard accuracy or binary log-loss is insufficient. You will receive partial credit for predicting the correct library calls with minor chronological transposition or omission errors.
+
+For a single row, the Normalized Edit Distance is calculated as:
+
+NED = 1.0 - [ LevenshteinDistance(Y_true, Y_pred) / max(Length(Y_true), Length(Y_pred)) ]
+
+A perfect chronological match yields 1.0.
+A completely incorrect sequence (or a malformed JSON output) yields 0.0.
+The final leaderboard score is the mean of the NED across all rows in the test set.
+Goal: Maximize this score. The closer to 1.0, the better.
+
+Dataset
+You are provided with a strictly constrained dataset of 9,958 compiled machine code samples.
+
+File Descriptions
+train.csv: Contains exactly 7,958 training samples with both the raw hex inputs and the ground truth sequence labels.
+test.csv: Contains exactly 2,000 test samples with the labels hidden.
+sample_submission.csv: A dummy submission file demonstrating the correct JSON-string array format.
+Data Dictionary
+| Column | Type | Description |
+
+|---|---|---|
+
+| id | String | A unique identifier for the compiled algorithm (e.g., bin_87190035f8cb2e13). |
+
+| mips_hex_string | String | The fully stripped, -O3 optimized executable .text section of the MIPS32 binary, represented as a continuous, dense hexadecimal string. (Present in both train and test). |
+
+| target_sequence | String | The ground truth label formatted as a valid JSON array string. An ordered sequence of standard C library functions (e.g., ["scanf", "abs", "printf"]). (Present only in train.csv). |
+
+Submission
+Submit a CSV file with exactly 2,000 rows. Your submission must include the id column and exactly one target column (String) named target_sequence.
+
+Crucial: The target_sequence MUST be a valid, stringified JSON array. If your model hallucinates conversational text (e.g., "The sequence is ["scanf"]"), outputs a raw Python list instead of a JSON string, or misses the column name, the automated grader will fail to parse it and assign a score of 0.0 for that row.
+
+| id | target_sequence |
+
+|---|---|
+
+| bin_f0653df1d6e434de | ["scanf", "malloc", "printf"] |
+
+| bin_1e5db8f54cb24ffc | ["puts"] |
+
+| bin_8ce0e4efd08b3b34 | [] |
+
+Author’s Initial Rubric
+6 criteria
+0 items
+·
+0 contributors
+·
+Draft
+The submission must generate strictly valid, stringified JSON arrays for every sequence prediction, entirely free of conversational text, markdown blocks, or raw Python lists.
+
+Because the automated evaluation script relies on json.loads(), any hallucinated preamble (e.g., "The sequence is:"), conversational text, or malformed syntax will result in a parsing failure, automatically assigning a score of 0.0 for that specific row.
+
+DATA HANDLING
+REQUIRED
+The preprocessing pipeline must implement byte-level tokenization, character-level encoding, or 4-byte architectural sliding windows rather than relying on standard pre-trained subword tokenizers.
+
+Standard Byte-Pair Encoding (BPE) tokenizers group characters based on human language syllables. When applied to raw MIPS32 hexadecimal strings, BPE will arbitrarily slice the data, completely destroying the underlying 4-byte machine instruction boundaries required for the model to actually learn the execution logic.
+
+FEATURE ENGINEERING
+REQUIRED
+The model architecture must be explicitly designed or configured to process extremely long, dense context windows without exhausting the VRAM.
+
+Compiled -O3 MIPS32 binaries result in massive character strings (often 2000+ characters per row). Standard Transformers scale quadratically and will easily trigger Out-Of-Memory (OOM) errors. Top submissions should utilize linear-scaling architectures (like Mamba/SSMs), 1D Convolutional Neural Networks, or employ memory-efficient attention mechanisms (like FlashAttention-2).
+
+MODELING
+RECOMMENDED
+The training objective or generation strategy should explicitly optimize for exact chronological ordering and sequence length, rather than treating the task as a "bag-of-words" multi-label classification problem.
+
+The competition is graded on Mean Normalized Edit Distance (NED). If a model successfully identifies the correct library calls (e.g., scanf, printf) but outputs them in the wrong chronological order or hallucinates extra/duplicate calls, the Levenshtein distance penalty will severely degrade the final score
+
+TRAINING
+RECOMMENDED
+The pipeline should correctly handle and predict edge cases where the ground-truth target sequence is completely empty
+
+The dataset contains algorithmic functions that compile successfully and perform internal math, but do not invoke any standard C-library calls (like I/O or memory allocation). A robust model must learn to confidently predict an empty JSON array [] for these specific hex patterns rather than hallucinating plausible but incorrect functions just to fill the output.
+
+DATA HANDLING
+RECOMMENDED
+The submission's training/inference script must be fully self-contained and reproducible, executing strictly within the 30-minute time limit without requiring external API calls or internet downloads during evaluation.
+
+Because this is a "from-scratch" training challenge, evaluating the code's efficiency is paramount. If a script relies on calling external APIs to bypass the tokenization problem, or if its custom architecture is so poorly optimized that inference takes hours, it fails the core constraints of the hardware environment.
+
+CODE QUALITY
+REQUIRED

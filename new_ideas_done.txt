@@ -1,0 +1,316 @@
+================================================================================
+NEW CHALLENGE IDEAS — Post-Failure Analysis, Deeply Novel
+================================================================================
+
+LESSONS FROM OUR FAILURES:
+- Deterministic discoverable rules → agents score ~1.0 (Dialect Translation, Token Composition, Ambiguous Instruction)
+- Same task structure as existing challenge → originality check fails (Multi-Stakeholder Preference)
+- Pure text understanding → LLMs too good, agents score ~1.0
+- Simple aggregation functions → overdetermined system, trivially solvable
+- Rigid statement templates → regex extraction trivially parses fields (Conflicting-Witness v1)
+
+WHAT WORKED (0.68-0.80 agent scores):
+- Latent Selection Function: noisy non-linear function + obfuscation + cold-start + session variation
+
+KEY INSIGHT: Difficulty must come from NOISE + NON-LINEARITY + PARTIAL OBSERVABILITY,
+not from hidden deterministic rules. If the ground truth is deterministic and fully
+inferable from training data, agents WILL crack it. Additionally, text-based challenges
+must use VARIED templates and embed DECOY entities in red-herring sentences to prevent
+simple extraction via regex.
+
+Each idea below is designed so that even a perfect model cannot exceed ~0.75-0.80
+because the generation process itself has irreducible stochastic components.
+
+================================================================================
+
+--------------------------------------------------------------------------------
+IDEA 1: Synthetic Annotator Consensus Prediction  [STATUS: SUBMITTED, Novelty 4/5, awaiting agent scores]
+--------------------------------------------------------------------------------
+Domain:       LLM Evaluation
+Data type:    Fully synthetic, tabular + short text
+Task:         Given a text item and partial annotations from a subset of synthetic
+              annotators, predict the FINAL CONSENSUS LABEL (1 of 6 classes).
+
+Setup:
+- 600 synthetic "annotators" with hidden reliability profiles:
+  Each annotator has per-class accuracy (e.g., annotator #17 is 90% accurate on
+  class 1, but only 40% on class 3). Some annotators are systematically biased
+  (always confuse class 2 with class 5). ~5% are adversarial (intentionally wrong
+  on specific topics).
+- 12,000 text items (synthetic short passages, ~50-100 words each).
+- Each training item has 5-8 annotator labels + the consensus label.
+- Each test item has only 2-3 annotator labels. Must predict consensus.
+
+The consensus is NOT majority vote — it's a hidden weighted aggregation where
+annotator weights depend on the TEXT TOPIC (inferred from content). An annotator
+who is great on medical topics has zero weight on legal topics.
+
+Ground truth generation:
+  consensus = weighted_mode(labels, weights)
+  where weights[annotator][topic] = hidden reliability matrix + noise
+
+Why hard for agents:
+- Must jointly learn: annotator reliability × topic assignment × label mapping
+- Test items have FEWER annotations (2-3 vs 5-8), so less signal
+- Annotator IDs are shuffled, features are opaque
+- The topic→weight interaction is non-linear and noisy
+- Can't just train a classifier on text — must use annotator signals
+- Can't just aggregate annotations — must learn who to trust for which topic
+- Adversarial confidence trap: spurious test readings have deliberately HIGH
+  confidence (0.78-0.96), designed to mislead agents that weight by confidence
+
+Why humans can improve:
+- Can design explicit annotator reliability models (Dawid-Skene extensions)
+- Can cluster annotators by behavior patterns
+- Can use text features to infer topic and select relevant annotators
+- Can model the interaction between text content and annotator reliability
+
+Baseline: Majority vote of available annotations → ~0.45 accuracy
+Expected agent score: 0.50-0.65 (noise floor limits to ~0.75 theoretical max)
+Evaluation metric: Quadratic Weighted Kappa (QWK) over 6 ordinal classes. Higher is better.
+
+Existing exemplar gap: Only 1 LLM Evaluation challenge exists (Answer Faithfulness,
+which is binary classification). This is 6-class with annotator modeling — 
+structurally completely different.
+
+--------------------------------------------------------------------------------
+IDEA 2: Synthetic Branching Protocol Outcome Prediction
+--------------------------------------------------------------------------------
+Domain:       Sequence to Sequence
+Data type:    Fully synthetic, text + tabular
+Task:         Given a procedural protocol description (free text, 8-15 steps with
+              conditional branches) and a set of initial conditions, predict the
+              4-field structured outcome of executing the protocol.
+
+Setup:
+- 8,000 synthetic protocols in a fictional biochemical processing domain.
+  Each protocol describes a sequence of 8-15 steps using coded terminology
+  (fictional reagent names like "Compound-KR7", tool names like "Centrifuge-T3",
+  state descriptors like "Phase-Amber").
+- Protocols contain conditional branches: "If the mixture reaches Phase-Amber,
+  apply Reagent-QN2; otherwise proceed with step 7."
+- Steps have SIDE EFFECTS: executing step 4 may change the state of a variable
+  that affects the condition in step 9.
+- Some steps are NO-OPS disguised as real operations (interference steps).
+- Step order in the description is SHUFFLED — steps reference each other by
+  step-ID (S01, S02, ...) rather than appearing in execution order.
+- Each protocol is paired with 3 different initial condition sets (24,000 total
+  training examples). Different initial conditions cause different execution paths.
+
+Output fields (4):
+  - terminal_state: 1 of 20 coded states (e.g., "TS-07")
+  - primary_product: 1 of 30 coded product IDs
+  - byproduct_class: 1 of 10 coded classes
+  - process_status: 1 of 5 (completed / failed / partial / timeout / ambiguous)
+
+Train: 6,000 protocols × 3 conditions = 18,000 examples (protocol + conditions + outcome)
+Test: 2,000 protocols × 1 condition = 2,000 examples (predict outcome)
+
+Ground truth generation:
+  outcome = execute(protocol_DAG, initial_conditions)
+  where protocol_DAG is a directed graph with conditional edges and side effects.
+  ~8% of protocols are genuinely ambiguous (underspecified conditions → multiple
+  valid execution paths; labeled with the "most likely" outcome + noise).
+  ~5% of protocols have unreachable branches (dead ends) that mislead.
+
+Why hard for agents:
+- Must parse procedural text, reconstruct execution DAG, trace through branches
+- Shuffled step ordering prevents sequential reading — must follow step-ID references
+- Side effects create non-local dependencies (step 4 affects step 9's branch)
+- Coded terminology prevents any pre-trained domain knowledge from helping
+- NO-OP interference steps waste model capacity if not identified
+- ~15% of test protocols have initial conditions that trigger execution paths
+  with UNSEEN step combinations (compositional generalization)
+- Ambiguous protocols cap theoretical performance at ~0.92
+- The same protocol with different initial conditions produces different outcomes —
+  must understand the branching logic, not memorize protocol→outcome mappings
+
+Why humans can improve:
+- Can systematically trace execution step by step through the DAG
+- Can identify NO-OP steps and ignore them
+- Can reason about side effects propagating across steps
+- Can detect underspecified conditions and handle edge cases
+- Can reconstruct the DAG structure from shuffled descriptions
+
+Baseline: Most frequent outcome per field → ~0.08 accuracy
+Expected agent score: 0.35-0.55
+Evaluation metric: Average per-field exact-match accuracy across 4 fields.
+Higher is better. Min: 0.0, Max: 1.0.
+
+Existing exemplar gap:
+- Self-Modifying Language: applies transformation RULES to tokens — no branching
+  logic, no side effects, no procedural text parsing.
+- Constraint-Satisfying Tool Call: generates API call sequences — no execution
+  tracing, no conditional branches, no initial conditions.
+- NL-to-SQL / NL-to-Lagrangian: translation tasks, not execution simulation.
+- This is fundamentally about PROGRAM EXECUTION FROM NATURAL LANGUAGE, where
+  the "program" is described in shuffled procedural text with coded terminology.
+  No existing exemplar requires tracing execution through conditional branches
+  with side effects.
+
+--------------------------------------------------------------------------------
+IDEA 3: Synthetic Temporal Evidence Verification with Source Credibility Decay
+--------------------------------------------------------------------------------
+Domain:       RAG
+Data type:    Fully synthetic, text corpus + tabular
+Task:         Given a knowledge base of ~600 dated synthetic documents about a
+              fictional island nation, and a claim with an "as-of" date, predict
+              the claim's verification status: SUPPORTED, REFUTED, PARTIALLY_TRUE,
+              or INSUFFICIENT_EVIDENCE.
+
+Setup:
+- 600 synthetic encyclopedia/news articles about the fictional nation of "Velantra":
+  history, geography, politics, economy, culture, science.
+  Each article: ~200-400 words, dated (year 2010-2025), attributed to a named source.
+- Documents form a TEMPORAL KNOWLEDGE GRAPH:
+  * Later articles may CORRECT earlier ones ("Contrary to earlier reports...")
+  * Some articles RETRACT prior claims explicitly
+  * Some articles PARTIALLY MODIFY claims (change one detail, keep others)
+  * Corrections are sometimes subtle (buried mid-paragraph, not in the title)
+- Sources (30 total) have HIDDEN credibility scores that DECAY over time:
+  * Source A: credibility 0.95 in 2010, decaying to 0.60 by 2025
+  * Source B: credibility 0.40 initially, improving to 0.85 by 2025
+  * A few "adversarial" sources: high credibility but ~15% of their articles
+    contain subtle factual errors that are never corrected
+- The fictional domain ("Velantra") means NO pre-trained knowledge helps.
+  All entity names, locations, events are completely invented.
+
+Claims + as-of dates:
+- Training: 4,000 claim-verdict pairs (claim text, as-of date, verdict)
+- Test: 1,200 claim-verdict pairs (predict verdict)
+- Each claim references 1-3 facts that can be found in the knowledge base
+- The as-of date determines which articles are "visible" (only articles dated
+  before the as-of date can be used as evidence)
+- A claim might be SUPPORTED by a 2015 article but REFUTED by a 2020 correction
+  → verdict depends on the as-of date
+
+Verdict determination:
+  For each fact in the claim:
+    1. Retrieve relevant articles up to the as-of date
+    2. Identify the MOST RECENT article on that topic
+    3. Weight by source credibility at the article's date
+    4. If the most recent credible article supports: SUPPORTED
+    5. If it contradicts: REFUTED
+    6. If partially supports: PARTIALLY_TRUE
+    7. If no relevant article found: INSUFFICIENT_EVIDENCE
+  For multi-fact claims: worst-case aggregation (one refuted fact → REFUTED)
+  + noise (σ ~ 0.12, ~12% of verdicts are randomly perturbed)
+
+Why hard for agents:
+- Multi-step: must retrieve relevant documents, filter by date, resolve conflicts
+- Temporal reasoning: the SAME claim has DIFFERENT verdicts at different as-of dates
+- Source credibility is HIDDEN — must be inferred from cross-referencing articles
+  (when source A and source B disagree, training data reveals which was right)
+- Subtle corrections: not all retractions/modifications are clearly labeled
+- Adversarial sources look credible but sometimes lie — high surface credibility
+  but inconsistent with other sources on specific topics
+- Fictional domain: zero transfer from pre-trained knowledge
+- PARTIALLY_TRUE is inherently fuzzy — claim has 2 facts, one supported, one not
+- ~12% noise in verdicts caps theoretical performance at ~0.88
+
+Why humans can improve:
+- Can reason about source reliability by cross-referencing articles
+- Can trace correction chains ("Article A said X, Article B corrected it to Y")
+- Can handle temporal filtering carefully
+- Can identify adversarial sources through inconsistency detection
+- Can distinguish PARTIALLY_TRUE from SUPPORTED/REFUTED through careful fact decomposition
+
+Baseline: Random verdict → ~0.25 Macro F1
+Expected agent score: 0.35-0.50 Macro F1
+Evaluation metric: Macro F1 over 4 verdict classes. Higher is better. Min: 0.0, Max: 1.0.
+
+Existing exemplar gap:
+- Multi-Hop Evidence Chain: all evidence is CONSISTENT, just scattered. No contradictions,
+  no temporal dynamics, no source credibility modeling.
+- Interplanetary KG RAG: multi-hop questions over a knowledge graph. No temporal filtering,
+  no source credibility, no contradictions between documents.
+- Vietnamese Tax: domain-specific calculation. No evidence conflict.
+- Wikimedia Page Retrieval: retrieval task. No verdict prediction, no temporal dynamics.
+- Chart Grounding: multimodal hallucination detection. Completely different.
+- This is fundamentally about TEMPORAL EVIDENCE CONFLICT RESOLUTION with hidden source
+  credibility, which no existing exemplar addresses.
+
+--------------------------------------------------------------------------------
+IDEA 4: Synthetic Conflicting-Witness Incident Reconstruction  [STATUS: SUBMITTED, Novelty 4/5, hardening in progress]
+--------------------------------------------------------------------------------
+Domain:       NLP (could also frame as RAG)
+Data type:    Fully synthetic, text
+Task:         Given 4-6 witness statements about a fictional incident, where
+              witnesses DISAGREE on key details, predict the ground-truth
+              incident report (structured: who, what, when, where, severity).
+
+Setup:
+- 8,000 synthetic incidents in a fictional industrial safety domain
+- Each incident has a ground-truth structured report with 6 fields:
+  actor (1 of 30), action (1 of 20), location (1 of 15), time_period (1 of 8),
+  severity (1 of 5), contributing_factor (1 of 12)
+- For each incident, 4-6 synthetic witness statements are generated:
+  * 8+ varied statement templates (same info expressed differently)
+  * Each witness has a "perspective" that makes them more/less reliable
+    on different fields (field-specific reliability, lowered significantly)
+  * Witnesses DISAGREE on 1-4 fields based on their reliability profiles
+  * Red-herring sentences embed DECOY entity codes from unrelated incidents,
+    so naive extraction picks up spurious values
+  * Witness reliability is NOT labeled — must be inferred
+- Test set: 2 witnesses DROPPED (leaving 2-4 per incident), 8% noise statements
+  injected from fabricated observers with plausible-looking random content
+- ~12% of incidents are genuinely ambiguous
+
+Ground truth: The "true" incident is a hidden structured record. Witnesses
+are noisy observations of it, with field-specific error rates.
+
+Why hard for agents:
+- Must reconcile CONFLICTING accounts without knowing who's reliable
+- Field-specific reliability: a witness can be right about location but
+  wrong about actor — can't just trust/distrust entire statements
+- DECOY CODES in red-herring sentences corrupt extraction-based approaches
+- VARIED TEMPLATES prevent regex/pattern matching across witnesses
+- Severe test-time sparsity (2-4 witnesses vs 4-6 in training)
+- No "majority rules" — sometimes the minority witness is correct
+- 8% fabricated noise statements with plausible random codes
+- ~12% of incidents are genuinely ambiguous (multiple valid reconstructions)
+
+Why humans can improve:
+- Can reason about witness credibility from their described perspective
+- Can identify corroborating details across statements
+- Can detect inconsistencies and weigh evidence
+- Can distinguish real entity codes from decoy codes in red herrings
+
+Baseline: Majority vote across witness statements per field → ~0.40 accuracy
+(hardened v2: ~0.57, expected to drop further with decoy codes)
+Expected agent score: 0.55-0.70
+Evaluation metric: Average per-field accuracy across all 6 fields.
+Higher is better. Min: 0.0, Max: 1.0.
+
+================================================================================
+COMPARISON TABLE
+================================================================================
+
+IDEA | DOMAIN          | TASK TYPE              | EXPECTED AGENT | NOVELTY | STATUS
+-----|-----------------|------------------------|----------------|---------|--------
+  1  | LLM Evaluation  | 6-class ordinal pred.  | 0.50-0.65 QWK  | 4/5     | Submitted
+  2  | Seq-to-Seq      | 4-field structured     | 0.35-0.55 acc  | 5/5     | New
+  3  | RAG             | 4-class verification   | 0.35-0.50 F1   | 5/5     | New
+  4  | NLP             | 6-field structured     | 0.55-0.70 acc  | 4/5     | Hardening
+
+KEY PROPERTIES:
+- All 4 are in DIFFERENT domains (no overlap)
+- All have irreducible noise floors (agents CANNOT score ~1.0)
+- All require multi-factor reasoning (not single-trick problems)
+- All are synthetic (we control difficulty and avoid licensing issues)
+- None are structurally similar to our accepted "Latent Selection Function" challenge
+- None overlap with the 35+ exemplar challenges on the platform
+- Ideas 2 and 3 target domains (Seq2Seq, RAG) we have NO submissions in
+
+IMPLEMENTATION DIFFICULTY:
+- Idea 1 (Annotator Consensus): DONE — submitted, awaiting results
+- Idea 2 (Branching Protocol): MEDIUM — generate DAG protocols, trace execution
+- Idea 3 (Temporal Evidence): HIGH — must generate coherent temporal knowledge base
+- Idea 4 (Witness Reconstruction): DONE — submitted, hardening in progress
+
+RECOMMENDATION:
+Next to build: Idea 2 (Branching Protocol) — medium difficulty, very high novelty,
+Seq2Seq domain is underrepresented, agent scores will be low because execution
+tracing with side effects through shuffled steps is fundamentally hard for LLMs.
+
+================================================================================

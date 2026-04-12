@@ -1,0 +1,225 @@
+Overview
+An open-source ML platform hosts thousands of resources -- models, datasets, and interactive applications (spaces) -- used daily by ML practitioners worldwide. Users interact with these resources by starring, downloading, and running them.
+
+In this challenge you will build a recommendation system for platform resources. Given a user's past interaction history with models, datasets, and spaces, predict which resources they will interact with next. This is a cross-type recommendation problem: your system must recommend across three different resource types simultaneously.
+
+The dataset captures real user-resource interaction patterns along with auxiliary signals from a knowledge graph (publishing relationships) and a social trust network.
+
+Evaluation
+Submissions are scored using a composite metric that rewards both ranking accuracy and recommendation diversity across resource types:
+
+Score
+=
+0.8
+×
+NDCG@10
++
+0.2
+×
+TypeDiversity@10
+Score=0.8×NDCG@10+0.2×TypeDiversity@10
+NDCG@10 (Normalized Discounted Cumulative Gain at K=10) measures how well your ranking places truly relevant items near the top:
+
+NDCG@10
+=
+1
+∣
+U
+∣
+∑
+u
+∈
+U
+DCG@10
+(
+u
+)
+IDCG@10
+(
+u
+)
+NDCG@10= 
+∣U∣
+1
+​
+  
+u∈U
+∑
+​
+  
+IDCG@10(u)
+DCG@10(u)
+​
+ 
+where:
+
+DCG@10
+(
+u
+)
+=
+∑
+i
+=
+1
+10
+rel
+(
+i
+)
+log
+⁡
+2
+(
+i
++
+1
+)
+DCG@10(u)= 
+i=1
+∑
+10
+​
+  
+log 
+2
+​
+ (i+1)
+rel(i)
+​
+ 
+rel
+(
+i
+)
+=
+1
+rel(i)=1 if the item at rank 
+i
+i is in the user's ground truth set, 0 otherwise. IDCG@10 is the ideal DCG achieved by a perfect ranking.
+
+TypeDiversity@10 measures whether your recommendations include diverse resource types:
+
+TypeDiversity@10
+(
+u
+)
+=
+∣
+unique item types in top-10 predictions
+∣
+3
+TypeDiversity@10(u)= 
+3
+∣unique item types in top-10 predictions∣
+​
+ 
+averaged across all test users. There are 3 resource types: model, dataset, and space. A score of 1.0 means every user's recommendations include all three types.
+
+Higher score is better. A perfect score of 1.0 requires both perfect ranking and full type diversity.
+
+Submission
+Submit a CSV file with columns user_id and predicted_items. The predicted_items column contains exactly 10 space-separated item IDs, ranked from most to least recommended.
+
+user_id,predicted_items
+0,1234 5678 91011 1213 1415 1617 1819 2021 2223 2425
+1,5678 1234 91011 1213 2425 1617 1819 2021 2223 1415
+...
+One row per test user (matching test.csv)
+Exactly 10 item IDs per row, space-separated
+Order matters: first item = most recommended
+Item IDs must be valid IDs from items.csv
+Dataset
+The dataset contains user-resource interactions from an ML platform ecosystem, along with auxiliary graph-structured data.
+
+Dataset Statistics
+Users: 38,624
+Items: 25,080 (16,200 models, 5,246 spaces, 3,634 datasets)
+Training interactions: approximately 867,000
+Test users: 38,624
+Knowledge graph triples: approximately 25,000
+Social network edges: approximately 84,900
+Item categories: 52
+Interaction sparsity: 99.91%
+File descriptions
+train.csv - Training interactions between users and resources
+test.csv - User IDs to generate predictions for
+items.csv - Resource metadata (type information)
+sample_submission.csv - Example of the expected submission format
+kg_triples.csv - Knowledge graph triples capturing publishing relationships between entities
+social_network.csv - Social trust/follow edges between users
+categories.csv - Item-to-category assignments (items can belong to multiple categories)
+Data fields
+train.csv
+
+user_id (int) - Anonymous integer identifier for a user
+item_id (int) - Integer identifier for a resource the user interacted with
+test.csv
+
+user_id (int) - Anonymous integer identifier for a user who needs predictions
+items.csv
+
+item_id (int) - Integer identifier for a resource
+item_type (str) - One of: model, dataset, or space
+kg_triples.csv
+
+head_entity_id (int) - Head entity identifier in the knowledge graph
+relation (str) - Relationship type between entities (e.g., publishing relationships between users/organizations and resources)
+tail_entity_id (int) - Tail entity identifier in the knowledge graph
+social_network.csv
+
+user_id_a (int) - Source user identifier
+user_id_b (int) - Target user identifier (trust/follow relationship)
+categories.csv
+
+item_id (int) - Resource identifier matching items.csv
+category_id (int) - Category label (0-51); items may belong to multiple categories
+sample_submission.csv
+
+user_id (int) - User to recommend for
+predicted_items (str) - Space-separated list of exactly 10 item_id values, ranked best-first
+ 
+
+Author’s Initial Rubric
+6 criteria
+0 items
+·
+0 contributors
+·
+Draft
+Correctly loads interaction data and constructs a user-item interaction matrix
+
+Building a proper user-item matrix is the foundation for any recommendation approach.
+
+DATA HANDLING
+REQUIRED
+Splits the training data to create a held-out validation set for hyperparameter tuning or early stopping
+
+Creating a validation split from training data prevents overfitting and improves generalization to the test set.
+
+DATA HANDLING
+RECOMMENDED
+Implements collaborative filtering (user-based, item-based, or matrix factorization such as ALS, SVD, or BPR)
+
+Collaborative filtering captures user-item interaction patterns and is the backbone of recommendation systems.
+
+MODELING
+RECOMMENDED
+Incorporates item metadata (item_type, categories) into the recommendation model
+
+Item types (model/dataset/space) and categories provide content signals that improve recommendations, especially for cold-start items.
+
+FEATURE ENGINEERING
+RECOMMENDED
+Leverages knowledge graph triples to enhance recommendations (e.g., KG embeddings, graph neural networks, or path-based features)
+
+The knowledge graph captures publishing relationships and entity connections that provide rich auxiliary signals beyond raw interactions.
+
+FEATURE ENGINEERING
+RECOMMENDED
+Handles cross-type recommendation by distinguishing between models, datasets, and spaces rather than treating all items uniformly
+
+The scoring metric includes a TypeDiversity component (20% weight) that rewards diverse resource type recommendations. Type-aware models are essential for maximizing this component.
+
+MODELING
+RECOMMENDED

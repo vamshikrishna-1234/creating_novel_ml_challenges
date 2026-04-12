@@ -1,0 +1,362 @@
+Review Feedback
+Review by
+
+manas
+approved
+looks good
+
+3/6/2026
+
+Dataset Research
+Novelty Score
+4/5
+High
+Source Verification
+Not Verified
+License Verification
+Not Verified
+Title
+Required
+A clear, descriptive name for your dataset
+
+Self Modifying Language Dataset
+
+Description
+Required
+Document your dataset thoroughly: columns, data types, characteristics, and any relevant context. Note that images are currently not supported.
+
+Overview
+This dataset introduces a synthetic algorithmic language reasoning task where textual rules dynamically transform sentences. The goal is to predict the final sentence produced after executing a sequence of transformation rules.
+
+Unlike typical NLP datasets focused on semantics or sentiment, this dataset evaluates algorithmic reasoning, rule execution, and state tracking. The rules may modify words, reorder tokens, or even alter the rule execution process itself.
+
+The dataset is fully synthetic and generated programmatically using a rule-based generator. This ensures complete control over the rule distribution, vocabulary, and difficulty while avoiding biases from natural language corpora.
+
+Dataset Characteristics
+Type: Fully synthetic dataset
+
+Samples: 10,000
+
+Vocabulary: ~110 synthetic tokens
+
+Sentence length: 6–12 tokens
+
+Rules per sample: 8–20
+
+Rule types: 6 distinct operations
+
+Evaluation goal: Exact match between predicted output sentence and ground truth
+
+The tokens used in the dataset are artificial identifiers such as:
+
+n23, v11, a5, n14, v30
+These tokens intentionally carry no semantic meaning, ensuring models must rely purely on rule execution rather than semantic priors.
+
+Dataset Structure
+The dataset contains the following columns:
+
+1. id
+Type: Integer
+ Unique identifier for each sample.
+
+Example:
+
+42
+2. rules
+Type: String
+
+A sequence of transformation rules separated by |.
+ Rules are executed sequentially from left to right.
+
+Example:
+
+1: replace(n1,v3) | 2: delete_rule(1) | 3: swap_pos(3,5)
+Rules may also modify other rules during execution.
+
+3. sentence
+Type: String
+
+The input sentence consisting of space-separated synthetic tokens.
+
+Example:
+
+n23 a6 v5 v33 a0 n27 n17
+4. output
+Type: String
+
+The final sentence produced after executing all rules sequentially.
+
+Example:
+
+a6 a6 5v 33v a0 n17 n27
+Rule Types
+The dataset currently supports six rule operations.
+
+1. replace(a,b)
+Replaces all occurrences of token a with token b.
+
+Example:
+
+replace(n2,v5)
+2. swap_pos(i,j)
+Swaps tokens at positions i and j (1-indexed).
+
+Example:
+
+swap_pos(3,6)
+3. reverse_word(i)
+Reverses the characters of the token at position i.
+
+Example:
+
+reverse_word(4)
+4. delete_rule(i)
+Deletes rule i before it is executed.
+
+Example:
+
+delete_rule(3)
+5. apply_rule(i)
+Executes rule i again at the current step.
+
+Example:
+
+apply_rule(2)
+6. if_len_gt(k): rule
+Conditionally executes a rule only if the sentence length is greater than k.
+
+Example:
+
+if_len_gt(9): replace(v30,a10)
+Execution Semantics
+Rules are processed sequentially from left to right.
+
+However, rule behavior may change dynamically due to:
+
+rule deletion
+
+rule re-execution
+
+conditional rules
+
+Therefore, the task effectively requires simulating a small rule interpreter.
+
+Dataset Generator
+This dataset was generated using the included notebook:
+
+self-modifying-language-dataset-generator.ipynb
+The generator performs the following steps:
+
+Creates a synthetic vocabulary of nouns, verbs, and adjectives.
+
+Randomly generates sentences with 6–12 tokens.
+
+Generates 8–20 transformation rules per sample.
+
+Executes the rules using a deterministic interpreter.
+
+Stores the resulting transformed sentence as the target output.
+
+Because the dataset is generated programmatically:
+
+it is fully reproducible
+
+rule distributions can be controlled
+
+new samples can be generated easily
+
+difficulty can be scaled by adjusting rule complexity
+
+Intended Use
+This dataset is designed to evaluate:
+
+algorithmic reasoning
+
+program execution from text
+
+rule-based sequence transformations
+
+compositional generalization
+
+It is particularly useful for studying limitations of modern language models in tasks requiring precise symbolic reasoning and sequential state tracking.
+
+
+
+Data Files
+Required
+Upload only your RAW dataset files. Archives (ZIP, TAR, etc.) will be automatically extracted. If you upload a zip, make sure it contains only the dataset files and not an extra parent folder.
+
+self_modifying_language_dataset.csv
+7.7 MB
+
+self-modifying-language-dataset-generator.ipynb
+9.8 KB
+
+2 files · 7.7 MB total
+
+self_modifying_language_dataset.csv
+7.7 MB
+
+self-modifying-language-dataset-generator.ipynb
+9.8 KB
+
+2 files total
+
+License & Source
+Attribution and licensing information
+
+CC0 1.0 (Public Domain)
+
+—
+
+Related Challenges
+Challenges created from this dataset
+
+Self-Modifying Language: A Synthetic NLP Reasoning Challenge
+Accepted
+Acquire a review lock to begin reviewing this dataset.
+
+Start Reviewing
+0/3 slots used
+
+
+
+
+
+
+
+
+
+
+
+Overview
+Natural language processing (NLP) models typically rely on semantic patterns and statistical correlations in human language. However, many real-world tasks require precise rule execution and algorithmic reasoning, where the correct answer depends on applying a sequence of transformations rather than interpreting meaning.
+
+In this challenge, you are given a synthetic language system in which sentences are transformed by a series of textual rules. These rules describe operations such as token replacement, position swaps, conditional execution, and rule interactions.
+
+Your task is to predict the final sentence after all transformations have been applied.
+
+While the provided rules describe the primary transformation process, the data generation procedure may introduce additional variations in how transformations affect the final sentence. As a result, interpreting the rule sequence alone may not always fully determine the output.
+
+This challenge therefore evaluates both:
+
+algorithmic reasoning over rule sequences
+pattern learning from synthetic transformation data
+Unlike traditional NLP tasks, the tokens in this dataset have no semantic meaning, and solving the problem requires learning how transformation rules interact with token sequences.
+
+Dataset
+The dataset is fully synthetic and generated programmatically using a rule-based generator. The generator creates sentences, rule sequences, and corresponding outputs through a controlled transformation process.
+
+The competition data is provided in three files.
+
+train.csv
+Training data used to train models.
+
+Columns
+ColumnTypeDescriptionidstringUnique identifier for the samplerulesstringSequence of transformation rules separated by `sentencestringInput sentence consisting of space-separated tokensoutputstringFinal transformed sentence produced by the generation process
+
+Example row
+id,rules,sentence,output
+a8f2c19d,"1: replace(n2,v5) | 2: swap_pos(3,6) | 3: reverse_word(2)","n23 a6 v5 v33 a0 n27 n17","a6 a6 5v 33v a0 n17 n27"
+test.csv
+Test data used for evaluation. The correct output column is removed.
+
+Columns
+ColumnTypeDescriptionidstringUnique identifier for the samplerulesstringSequence of transformation rulessentencestringInput sentence
+
+Example row
+id,rules,sentence
+d912ab3f,"1: swap_pos(2,5) | 2: reverse_word(3)","n12 a7 v3 n4 a1"
+sample_submission.csv
+Template file demonstrating the required submission format.
+
+Columns
+ColumnTypeDescriptionidstringTest sample identifieroutputstringPredicted transformed sentence
+
+Example
+id,output
+d912ab3f,n12 a7 v3 n4 a1
+Rule Semantics
+Each example contains a sequence of transformation rules describing how tokens in the sentence may be modified.
+
+Rules are normally processed sequentially from left to right, although some rules can alter the execution process itself.
+
+Supported rule types include:
+
+replace(a,b)
+Replace every occurrence of token a with token b.
+
+Example:
+
+replace(n2,v5)
+swap_pos(i,j)
+Swap tokens at positions i and j. Positions are 1-indexed.
+
+Example:
+
+swap_pos(3,6)
+reverse_word(i)
+Reverse the characters of the token at position i.
+
+Example:
+
+reverse_word(4)
+delete_rule(i)
+Deletes rule i before it executes.
+
+Example:
+
+delete_rule(3)
+apply_rule(i)
+Executes rule i again at the current step.
+
+Example:
+
+apply_rule(2)
+if_len_gt(k): rule
+Conditionally executes a rule only if the sentence length is greater than k.
+
+Example:
+
+if_len_gt(9): replace(v30,a10)
+Execution Behavior
+Rules normally execute sequentially from left to right. However, rules such as delete_rule and apply_rule can modify the rule execution process dynamically.
+
+In addition, the final transformed sentence may reflect subtle variations introduced during the dataset generation process. Therefore, while interpreting the rule sequence is important, accurate prediction may also require learning patterns present in the training data.
+
+Submission
+Participants must submit predictions for the test set in CSV format.
+
+The submission file must contain the following columns:
+
+id,output
+Column description
+ColumnTypeDescriptionidstringTest sample identifieroutputstringPredicted transformed sentence
+
+Example submission
+id,output
+d912ab3f,n12 a7 v3 n4 a1
+b3e12c4a,a3 n9 v5 n1
+Submission Requirements
+Each id from test.csv must appear exactly once
+The submission must contain the same number of rows as the test set
+The output must be a space-separated sequence of tokens
+Tokens should follow the same format as those in the dataset
+Evaluation
+Submissions are evaluated using Exact Match Accuracy.
+
+A prediction is considered correct only if the entire predicted sentence exactly matches the ground truth sentence.
+
+Accuracy is computed as:
+
+accuracy = correct_predictions / total_predictions
+Where:
+
+correct_predictions = number of rows where the predicted output exactly matches the true output
+total_predictions = total number of test samples
+Notes
+All tokens are synthetic identifiers and do not carry semantic meaning.
+The dataset is fully synthetic and generated programmatically.
+The transformation process may include additional variations beyond the visible rule sequence.
+The task focuses on algorithmic reasoning and pattern learning in NLP systems, rather than natural language semantics.
+ 

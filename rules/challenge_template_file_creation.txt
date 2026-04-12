@@ -1,0 +1,209 @@
+1)
+Difficulty
+Required
+Set the complexity level for this challenge
+Design challenges that require using pre-trained models for significantly better payouts.
+Difficulty
+EasyMediumHard
+2)Challenge Title:
+Problem title should be in title case (e.g. 'Vehicle Sound Classification').
+Required
+Problem title should be in title case (e.g. 'Vehicle Sound Classification').
+A clear, descriptive name for your ML challenge in capital letters
+3)Problem Description
+Required
+The challenge prompt agents will see. Must be complete and unambiguous.
+Interface of problem description:
+Problem Description editor used to write the challenge prompt that agents will see. At the top, there is a “Problem Description” title with a “Required” label, indicating that this field must be filled before submission. The editor provides a rich-text formatting toolbar with options for headings (H1, H2, H3), bold, italic, strikethrough, inline code formatting, code blocks, bulleted lists, numbered lists, block quotes, and a horizontal divider. On the right side, there is an eye icon for previewing the formatted content. The main section is a large text input area where the full problem description can be written. At the bottom, a validation message (“Problem description is required”) appears, indicating that the field is currently empty and must be completed before proceeding.
+
+4)
+Tags
+Select relevant tags to help users discover this challenge
+textimagesegmentationfeature-engineeringfinancemedical3d-medicalsmall-datalarge-scaleclusteringreinforcement-learninggenerativemultimodalaudiovideo
+Select one or more tags that describe this challenge
+5)
+Grading Configuration
+Required
+Define how the grader interprets scores. Must match your evaluation metric.
+Grade direction: Minimize or Maximize?
+6)
+Theoretical minimum (e.g., 0 for accuracy)
+∞
+Theoretical maximum (e.g., 1.0 for AUC)
+7)
+Grading Script
+Required
+Define a grade.py script to grade submissions and return a single float.
+Template
+Custom
+
+
+Template
+Regression — RMSE:
+import pandas as pd
+import numpy as np
+
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    '''Score numeric predictions using Root Mean Squared Error.
+    TODO: Update column names to match your challenge.
+    '''
+    merged = answers.merge(submission, on='id', how='left')
+    if merged['prediction'].isna().any():
+        raise ValueError('Submission missing predictions for some rows')
+
+
+    rmse = np.sqrt(((merged['target'] - merged['prediction']) ** 2).mean())
+    return float(rmse)
+
+
+Template
+Classification — accuracy:
+import pandas as pd
+
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    '''Score classification predictions using accuracy.
+    TODO: Update column names to match your challenge.
+    '''
+    merged = answers.merge(submission, on='id', how='left')
+    if merged['prediction'].isna().any():
+        raise ValueError('Submission missing predictions for some rows')
+
+
+    accuracy = (merged['target'] == merged['prediction']).mean()
+    return float(accuracy)
+
+
+Template
+Text generation — BLEU score:
+import pandas as pd
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    '''Score generated text using average BLEU score.
+    TODO: Update column names to match your challenge.
+    '''
+    merged = answers.merge(submission, on='id', how='left')
+    if merged['prediction'].isna().any():
+        raise ValueError('Submission missing predictions for some rows')
+
+
+    smooth = SmoothingFunction().method1
+    scores = []
+    for _, row in merged.iterrows():
+        ref_tokens = row['target'].split()
+        gen_tokens = row['prediction'].split()
+        scores.append(sentence_bleu([ref_tokens], gen_tokens, smoothing_function=smooth))
+
+
+    return float(sum(scores) / len(scores))
+Template
+Exact match — string comparison:
+import pandas as pd
+
+
+def grade(submission: pd.DataFrame, answers: pd.DataFrame) -> float:
+    '''Score predictions using exact string match (case-insensitive).
+    TODO: Update column names to match your challenge.
+    '''
+    merged = answers.merge(submission, on='id', how='left')
+    if merged['prediction'].isna().any():
+        raise ValueError('Submission missing predictions for some rows')
+
+
+    matches = merged['target'].str.strip().str.lower() == merged['prediction'].str.strip().str.lower()
+    return float(matches.mean())
+
+
+8)
+GPU Tier
+Required
+Select the GPU hardware for solution grading.
+  - A10G — Standard ML workloads (most challenges should use this)
+  - H100 — LLM training & fine-tuning
+H100 is intended for LLM training and fine-tuning challenges. Most challenges should use A10G.
+Pick H100 only if the challenge requires training or fine-tuning a language model.
+
+Data Preparation Pipeline
+Transform raw dataset files into public/private splits for the challenge.
+1Input —raw/
+These files are passed as the raw argument when your script runs.
+energydata_complete.csv11 MB
+1 file total
+Script — prepare.pyEditable
+Start from a template
+Pick a starting point and edit to match your data. These are just scaffolds — you'll need to adapt file names, column names, and logic.
+Already split — raw has public/ and private/ folders
+Use when your processed dataset already contains public/ and private/ subdirectories. Copies each to the corresponding output.:
+from pathlib import Path
+import shutil
+
+
+def prepare(raw: Path, public: Path, private: Path) -> None:
+    '''Copy pre-split public/private directories from raw data.
+    TODO: Verify the folder names match your dataset structure.
+    '''
+    raw_public = raw / 'public'
+    raw_private = raw / 'private'
+
+
+    if not raw_public.exists():
+        raise FileNotFoundError(f"Expected 'public' directory in raw data at {raw_public}")
+    if not raw_private.exists():
+        raise FileNotFoundError(f"Expected 'private' directory in raw data at {raw_private}")
+
+
+    for item in raw_public.iterdir():
+        dest = public / item.name
+        if item.is_dir():
+            shutil.copytree(item, dest)
+        else:
+            shutil.copy2(item, dest)
+
+
+    for item in raw_private.iterdir():
+        dest = private / item.name
+        if item.is_dir():
+            shutil.copytree(item, dest)
+        else:
+            shutil.copy2(item, dest)
+
+
+Train-test split — from a single data.csv
+Use when raw data has a data.csv with a 'target' column. Splits into train/test, hides test answers in private/.:
+
+from pathlib import Path
+
+
+def prepare(raw: Path, public: Path, private: Path) -> None:
+    '''Split data.csv into train/test sets.
+    TODO: Update file name, target column, and test_size for your data.
+    '''
+    import pandas as pd
+    from sklearn.model_selection import train_test_split
+
+
+    df = pd.read_csv(raw / 'data.csv')
+    train, test = train_test_split(df, test_size=0.2, random_state=42)
+
+
+    train.to_csv(public / 'train.csv', index=False)
+    test.drop('target', axis=1).to_csv(public / 'test.csv', index=False)
+    test[['id', 'target']].to_csv(private / 'answers.csv', index=False)
+
+
+Output — prepared data
+Pipeline v1
+Run Prepare
+Evaluation Rubrics
+Define what 'good agent behavior' looks like beyond the score. Be specific to THIS task.
+0 rubrics(inherited from dataset)
+Add Rubric
+No rubrics defined
+Rubrics define what "good agent behavior" looks like. Aim for 5-10 specific criteria grounded in your task.
+Agent Evaluation Runs
+Automated agent runs that test whether your challenge is solvable. Dispatched when you submit for review.
+No agent evaluations yet
+Agent evaluations run automatically when you submit this problem for review. They test whether an AI agent can successfully solve your challenge.

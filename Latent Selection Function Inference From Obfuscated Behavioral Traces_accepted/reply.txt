@@ -1,0 +1,24 @@
+Hi,
+
+Thank you for the review. Responses below:
+
+1) "Problem description mentions annual_income and customer_segment"
+This appears to be a mix-up with another challenge. My description has never contained these columns — the target is purchased_item_id (item selection, not segment classification) and there is no income column in any file.
+
+2) "Remove penalty -5.0 is a leaky signal"
+Fixed. Reduced to -1.5. Now ~11% of sessions have a selected item that was also removed, so it's no longer a deterministic anti-signal.
+
+3) "90% purchased = highest engagement — add passive interest sessions"
+Fixed. ~20% of sessions now follow a "passive interest" regime where selection is based on user-item feature compatibility, not engagement signals. ~14% of selected items have only view events.
+
+4) "Target is customer_segment (0-3)"
+Same mix-up as point 1 — my target has always been purchased_item_id (1-of-N item selection per session).
+
+5) "Purge marketplace terminology"
+Fixed. Removed all references to marketplace/budget/income/segments from dataset title, description, column names (budget_low/high → tier_low/high), and challenge form.
+
+Changes summary:
+- generate.py: penalty -5→-1.5, added ~20% passive sessions, renamed budget columns
+- prepare.py: updated column references
+- All 4 CSVs regenerated and re-uploaded
+- Dataset + Challenge descriptions updated

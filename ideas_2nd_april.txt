@@ -1,0 +1,288 @@
+================================================================================
+NEW CHALLENGE IDEAS — 2nd April 2026
+================================================================================
+
+DOMAINS ALREADY COVERED (Ideas 1-4):
+- LLM Evaluation (Annotator Consensus) — submitted
+- Seq-to-Seq (Branching Protocol) — done
+- RAG (Temporal Evidence Verification) — done
+- NLP (Conflicting-Witness Reconstruction) — submitted
+
+DOMAINS STILL OPEN:
+  Computer Vision, Object Detection, Recommendation Systems,
+  Prompt Engineering, Fine-Tuning
+
+LESSONS CARRIED FORWARD:
+- Difficulty from NOISE + NON-LINEARITY + PARTIAL OBSERVABILITY, not hidden deterministic rules
+- Varied templates / obfuscated features / decoy signals to block regex and shortcut learning
+- Irreducible stochastic component so agents CANNOT hit ~1.0
+- Multi-factor reasoning required (not single-trick)
+- All synthetic → no licensing issues, full difficulty control
+
+================================================================================
+
+--------------------------------------------------------------------------------
+IDEA 5: Synthetic Context-Aware Recommendation with Latent Regime Switching
+--------------------------------------------------------------------------------
+Domain:       Recommendation Systems
+Data type:    Fully synthetic, tabular
+Task:         Given historical user-item-context interaction logs, predict the
+              rating (1.0-5.0 continuous) for held-out user-item-context triples.
+
+Setup:
+- 400 synthetic users, 800 synthetic items.
+- 6 observable context features per interaction:
+    time_slot (1 of 6 coded slots, e.g. TS-0..TS-5),
+    device_code (1 of 4, e.g. DEV-0..DEV-3),
+    session_length (int, 1-120),
+    referral_code (1 of 10, e.g. REF-00..REF-09),
+    interaction_seq (int, position in session),
+    day_type (1 of 3, e.g. DT-0..DT-2)
+- Each user has a HIDDEN "regime" (1 of 10 latent behavioral archetypes).
+  A regime defines a preference vector over 8 hidden item-attribute dimensions.
+- Each item has a HIDDEN 8-dimensional attribute vector (not observable).
+- CRITICAL TWIST — regime switching:
+  A user's active regime CHANGES depending on context. User #42 in context
+  (TS-2, DEV-1, DT-0) acts like regime 3 (prefers educational items), but
+  in context (TS-5, DEV-3, DT-2) switches to regime 7 (prefers entertainment).
+  The mapping from context → regime is a non-linear function specific to each
+  user, parameterized by a hidden per-user transition matrix.
+- ~20% of users are "stable" (same regime regardless of context) — these are
+  easy anchors for basic collaborative filtering to latch onto.
+- ~15% are "volatile" (regime changes frequently and erratically) — these are
+  essentially unpredictable beyond the noise floor, capping performance.
+- Rating generation:
+    rating = clip(dot(regime_pref_vector, item_attrs) + user_bias + item_bias + N(0, 0.6), 1.0, 5.0)
+  where regime = transition_matrix[user][hash(context_features)]
+- Red-herring features: referral_code and interaction_seq are correlated with
+  rating in training (spurious confound via session selection bias) but NOT
+  in test. Models that rely on them will degrade.
+- Training: 80,000 (user_id, item_id, context_features, rating) tuples.
+  All 400 users and 800 items appear, but some user-context combinations are
+  rare (sparse coverage of the regime-switching space).
+- Test: 20,000 tuples. Oversamples:
+  (a) volatile users,
+  (b) novel context combinations that trigger regime states underrepresented
+      in training,
+  (c) cold-start items (≤3 training interactions).
+
+Ground truth generation:
+  regime = user_transition_matrix[user_id][hash(time_slot, device_code, day_type) % 10]
+  pref = regime_preference_vectors[regime]  # 8-dim
+  attrs = item_attribute_vectors[item_id]    # 8-dim
+  rating = clip(dot(pref, attrs) + user_bias[user_id] + item_bias[item_id] + N(0, 0.6), 1, 5)
+  ~12% of ratings additionally perturbed by uniform noise in [-1.5, 1.5] (irreducible).
+
+Evaluation Metric:
+  RMSE (Root Mean Squared Error). **Lower is better.**
+  Theoretical minimum: ~0.65 (noise floor from σ=0.6 + 12% uniform perturbation).
+  Theoretical maximum (worst): ~2.0 (random prediction in [1,5]).
+
+Why hard for agents:
+- Standard collaborative filtering (SVD, ALS, matrix factorization) ignores context
+  entirely → fails on volatile users, which are oversampled in test.
+- Adding context features naively (as extra columns to a gradient boosted model)
+  doesn't capture the REGIME-SWITCHING structure — the same user has fundamentally
+  different preference vectors in different contexts, not just shifted scores.
+- Must jointly discover: (1) latent regimes, (2) per-user context→regime mappings,
+  (3) item attribute vectors, (4) regime preference vectors.
+  This is a 4-layer latent factor problem with non-linear interactions.
+- Red-herring features (referral_code, interaction_seq) are correlated with rating
+  in training but not test — standard feature importance methods will select them.
+- Volatile users are inherently noisy — even the true model can't predict them well.
+- Cold-start items in test have ≤3 training interactions, so item attribute vectors
+  must be inferred from very limited signal.
+- Noise floor at ~0.65 RMSE means agents can never reach near-perfect scores.
+
+Why humans can improve:
+- Can design explicit regime-switching models (mixture-of-experts, HMMs, contextual
+  bandits adapted for rating prediction).
+- Can cluster users by behavioral stability and apply different strategies:
+  stable users → standard CF, volatile users → context-heavy models.
+- Can engineer regime-indicator features from context (e.g., hash-based bucketing
+  of context combinations, then learn per-bucket preference vectors).
+- Can detect and remove red-herring features via careful train/validation
+  distribution analysis.
+- Can use meta-learning to share regime structure across similar users.
+- Can design ensemble methods: CF backbone + context-aware correction layer.
+
+Baseline: Global mean rating prediction → RMSE ~1.5
+Expected agent score: RMSE ~1.0-1.3
+  (agents at best reach ~65% of the way from baseline to theoretical min)
+Theoretical best: RMSE ~0.65
+  80% mark: RMSE ~0.82 — agents expected well above this.
+
+Existing exemplar gap:
+- NO Recommendation Systems challenge currently exists on the platform.
+- Standard rec-sys benchmarks (MovieLens, Amazon) don't have context-dependent
+  regime switching — users have static preferences.
+- Context-aware recommendation exists in literature but is never framed as a
+  Kaggle-style prediction challenge with hidden regime structure.
+- The regime-switching aspect is structurally novel: it's not just "add context
+  features" — it requires discovering that user preferences are a discrete
+  mixture that changes with context.
+
+Implementation difficulty: MEDIUM
+- Generate user transition matrices, item attribute vectors, regime preferences.
+- Simulate interactions with context-dependent regime selection.
+- Inject red-herring correlations via session selection bias.
+- Obfuscate all IDs and feature names.
+
+--------------------------------------------------------------------------------
+IDEA 6: Synthetic Calibrated Prediction Under Heteroscedastic Noise
+         with Adversarial Feature Traps
+--------------------------------------------------------------------------------
+PLATFORM ELIGIBILITY (Shipd / Eris-style domain gates): **NOT ELIGIBLE** as built.
+Substance = tabular regression + interval outputs; classifiers map to "Regression"
+(which may be closed). Does NOT genuinely match NLP, CV, OD, Rec, Seq2Seq, Prompt,
+RAG, LLM Fine-Tuning, or LLM Evaluation. See folder:
+`Synthetic Calibrated Interval Prediction/PLATFORM_DOMAIN_STATUS.md`.
+
+Domain (honest): Tabular supervised learning / regression + uncertainty bands.
+(The earlier "Fine-Tuning" label was a loose slot-fill — not LLM weight fine-tuning.)
+Data type:    Fully synthetic, tabular
+Task:         For each test sample, predict BOTH a point estimate (continuous
+              target) AND a 90% confidence interval (lower_bound, upper_bound).
+              Grading rewards accuracy AND calibration jointly.
+
+Setup:
+- 50,000 synthetic samples with 30 features:
+  20 numeric (float), 10 categorical-coded-as-int (3-15 levels each).
+- Target = complex non-linear function of ~18 "real" features + heteroscedastic noise.
+- HETEROSCEDASTIC NOISE — the noise variance depends on the region of feature space:
+  * "Easy" regions (dense training data, smooth target surface): σ = 0.3
+  * "Hard" regions (sparse training data, complex target surface): σ = 2.5
+  * "Trap" regions: LOW noise in training, HIGH noise in test (distribution shift
+    in the noise process — the target function stays the same, but variance spikes).
+    ~15% of test samples fall in trap regions.
+- 5 RED-HERRING FEATURES:
+  Correlated with target in training via a confounding variable that is absent in
+  test. A model that uses them will be accurate on training but degrade on test.
+  These features have plausible-looking distributions and realistic-seeming names.
+- 7 DECOY INTERACTION FEATURES:
+  Products/ratios of real features that appear informative but are actually
+  downstream of noise — using them amplifies variance without improving signal.
+- Target generation:
+    clean_signal = f(x_1, ..., x_18)  # non-linear, involves 3-way interactions
+    noise_sigma = g(x_1, x_5, x_12)   # heteroscedastic: depends on 3 features
+    target = clean_signal + N(0, noise_sigma)
+  where f involves polynomial terms, thresholds, and piecewise functions.
+  ~8% of targets have an additional uniform perturbation (irreducible ambiguity).
+- Training: 37,500 samples with target values.
+- Test: 12,500 samples — predict: point_estimate, lower_90, upper_90.
+
+Submission format:
+  sample_id, point_estimate, lower_90, upper_90
+  (lower_90 and upper_90 define the predicted 90% confidence interval)
+
+Ground truth (private/answers.csv):
+  sample_id, target, true_sigma
+  (true_sigma is the actual noise std for that sample — used for calibration scoring)
+
+Grading (combined weighted score):
+  point_score = 1.0 - clamp(MAE / max_MAE, 0, 1)
+  coverage = fraction of test samples where lower_90 <= target <= upper_90
+  coverage_score = 1.0 - abs(coverage - 0.90) * 5   # penalize over/under-coverage
+  sharpness = mean(upper_90 - lower_90)
+  sharpness_score = 1.0 - clamp(sharpness / max_width, 0, 1)
+  FINAL = 0.50 * point_score + 0.30 * coverage_score + 0.20 * sharpness_score
+  Score range: [0.0, 1.0], higher is better.
+
+Evaluation Metric:
+  Combined score = 0.50 * (point accuracy) + 0.30 * (calibration coverage)
+                 + 0.20 * (interval sharpness).
+  **Higher is better.** Min: 0.0, Max: 1.0.
+  Theoretical max: ~0.78 (noise floor limits point accuracy; trap regions
+  limit calibration; irreducible ambiguity limits sharpness).
+
+Why hard for agents:
+- Most ML models produce point estimates only — agents must additionally produce
+  CALIBRATED confidence intervals, which requires fundamentally different modeling.
+- Heteroscedastic noise means constant-width intervals fail badly: too wide in
+  easy regions (sharpness penalty) and too narrow in hard regions (coverage penalty).
+- TRAP REGIONS are the killer: models trained on low-noise trap samples will be
+  overconfident on the corresponding test samples where noise spikes. Standard
+  train/validation splitting won't reveal this because the noise shift only
+  appears in test.
+- Red-herring features improve training metrics but hurt test performance —
+  standard feature selection methods (importance, correlation) will keep them.
+- Decoy interaction features amplify noise when included.
+- The combined metric means agents can't just optimize one aspect — they must
+  balance point accuracy vs coverage vs sharpness. There is no single model
+  architecture that trivially optimizes all three.
+- The non-linear target function with 3-way interactions requires sophisticated
+  feature engineering or deep models, but deep models tend to be poorly calibrated.
+- ~8% irreducible ambiguity means even a perfect model can't achieve coverage
+  and sharpness simultaneously on those samples.
+
+Why humans can improve:
+- Can design explicit heteroscedastic models (quantile regression forests,
+  heteroscedastic neural networks, conformal prediction).
+- Can detect trap regions by comparing training noise estimates against
+  feature-space density and designing adaptive intervals.
+- Can identify and remove red-herring features via careful out-of-distribution
+  detection (features with shifted test distributions).
+- Can use conformal prediction methods to guarantee coverage properties.
+- Can build two-stage pipelines: point prediction model + residual variance model.
+- Can detect decoy interactions via ablation studies on validation set.
+- Can design custom loss functions that directly optimize the combined metric.
+- Can ensemble multiple interval estimation methods for better calibration.
+
+Baseline: Global mean + constant interval (mean ± 2*global_std) → score ~0.30
+Expected agent score: ~0.42-0.55
+  (agents at best reach ~55-70% of theoretical max)
+Theoretical best: ~0.78
+  80% mark: ~0.62 — agents expected below this.
+
+Existing exemplar gap:
+- NO challenge on the platform requires calibrated confidence intervals.
+- Standard regression challenges only evaluate point predictions (RMSE, MAE, R²).
+- Uncertainty quantification is an active research area but has never appeared
+  as a Kaggle-style competition with a combined accuracy+calibration metric.
+- The heteroscedastic + trap-region setup is structurally novel: it's not just
+  "predict well" — you must also "know when you don't know."
+- The adversarial feature traps (red herrings + decoy interactions) add a
+  feature engineering dimension that compounds the difficulty.
+
+Implementation difficulty: MEDIUM-HIGH
+- Generate target function with non-linear 3-way interactions.
+- Generate heteroscedastic noise with region-dependent variance.
+- Inject trap regions (low train noise → high test noise).
+- Create red-herring features with training-only confound.
+- Implement combined grading metric.
+
+================================================================================
+COMPARISON TABLE (All 6 Ideas)
+================================================================================
+
+IDEA | DOMAIN          | TASK TYPE              | EXPECTED AGENT | NOVELTY | STATUS
+-----|-----------------|------------------------|----------------|---------|--------
+  1  | LLM Evaluation  | 6-class ordinal pred.  | 0.50-0.65 QWK  | 4/5     | Done
+  2  | Seq-to-Seq      | 4-field structured     | 0.35-0.55 acc  | 5/5     | Done
+  3  | RAG             | 4-class verification   | 0.35-0.50 F1   | 5/5     | Done
+  4  | NLP             | 6-field structured     | 0.55-0.70 acc  | 4/5     | Done
+  5  | Rec Systems     | context-aware rating   | 1.0-1.3 RMSE   | 5/5     | New
+  6  | Tabular (Reg)    | intervals + compound   | 0.42-0.55 comb | 5/5     | INELIGIBLE
+
+(Idea 6: not in the enabled domain list; Regression gate. Details: Synthetic Calibrated Interval Prediction/PLATFORM_DOMAIN_STATUS.md)
+
+KEY PROPERTIES OF NEW IDEAS (5 & 6):
+- Idea 5: Rec Systems — empty slot on many platforms.
+- Idea 6: **NOT** in enabled domains as built (regression substance); see folder marker.
+- Both have irreducible noise floors (agents CANNOT reach theoretical max)
+- Both require multi-layer reasoning (not single-trick):
+    Idea 5: regime discovery + user clustering + context modeling + CF
+    Idea 6: point estimation + variance modeling + calibration + feature selection
+- Both are synthetic (no licensing, full difficulty control)
+- Both have adversarial traps (red-herring features, volatile users / trap regions)
+- Neither overlaps structurally with Ideas 1-4 or platform exemplars
+- Agent scores expected at 55-70% of theoretical max (well under 80% threshold)
+
+RECOMMENDATION:
+- Idea 5 (Rec Systems) — fills a completely empty domain slot, medium difficulty
+  to implement, clean tabular format, highly novel regime-switching mechanic.
+- Idea 6 — keep as **reference / learning artifact** unless the task is **redesigned**
+  (e.g. add genuine NLP/RAG structure, or discrete labels for classification) so it
+  maps to an open domain. Do not rely on description-only reframing to pass Regression.
+
+================================================================================

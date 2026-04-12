@@ -1,0 +1,168 @@
+Domain
+Computer Vision
+Difficulty
+Hard
+Scoring
+↑ Higher is better
+Status
+Accepted
+Tags:
+image
+multimodal
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(1)
+Rubrics
+Your Submissions
+Collaborative Two-Agent Maze Solver
+Category: Visual Reasoning | Difficulty: Hard | Score: 0.0-1.0 (maximize)
+
+Overview
+You are given images of cooperative two-agent maze puzzles. Each image shows a 10×10 grid maze containing six elements: a Red Agent, a Red Target, a Blue Agent, a Blue Target, a Door, and a Button. Your task is to build an AI agent that analyzes each maze image and computes the minimum total number of moves (combined for both Red and Blue agents) required for both agents to reach their respective targets.
+
+This is not a simple pathfinding task. The maze contains a cooperative constraint: the Door is locked by default and can only be opened when an agent is standing on the Button. The Door is structurally positioned as the only path between the Red Agent and the Red Target — there is no alternative route. This means one agent must navigate to the Button and hold it open while the other passes through the Door, then both must continue to their targets.
+
+The state space is 4-dimensional: (red_row, red_col, blue_row, blue_col). Naive approaches that solve each agent independently will produce incorrect answers. Agents must reason about the joint movement sequence of both players, including the dynamic door mechanic, to find the optimal solution.
+
+Step counts in this dataset range from 18 to 367, with a mean of ~150. The wide range reflects the diversity of maze layouts, entity placements, and the varying complexity of cooperative sequences required.
+
+Evaluation
+Submissions are scored using MAE (Mean Absolute Error):
+
+MAE = (1/n) × Σ |predicted_i − actual_i|
+
+Final Score = 1 / (1 + MAE)
+
+Score ranges from 0 to 1 (higher is better). A perfect prediction yields Score = 1.0.
+
+MAE penalizes each step of error equally — an agent that overcounts by 10 steps receives the same penalty whether the true answer is 50 or 300. This makes the metric directly interpretable: "on average, how many steps off is the prediction?"
+
+def evaluate(y_true, y_pred):  
+    """  
+    y_true: list of ground-truth step counts (int)  
+    y_pred: list of predicted step counts (int)  
+    Returns: score = 1 / (1 + MAE), higher is better  
+    """  
+    n = len(y_true)  
+    mae = sum(abs(p - t) for p, t in zip(y_pred, y_true)) / n  
+    return 1.0 / (1.0 + mae)  
+Dataset
+The dataset contains 5000 labeled maze puzzles. The preparation pipeline automatically splits it into an 80/20 train/test split, producing the following files that agents will see:
+
+File Structure
+File	Rows	Description
+train.csv	4000	Training data with ground truth answers (id, image_filename, question, target_steps)
+test.csv	1000	Test data WITHOUT answers (id, image_filename, question) — agents predict target_steps for these
+sample_submission.csv	1000	Submission template with correct IDs and placeholder values
+train_images/	4000	Maze PNG images for training samples
+test_images/	1000	Maze PNG images for test samples
+train.csv Schema
+Column	Type	Description
+id	int	Unique identifier (1-indexed)
+image_filename	string	Filename of the maze image (e.g., "maze_0001.png"). Located in train_images/
+question	string	Fixed English prompt describing the maze rules
+target_steps	int	Minimum total moves for both agents (ground truth answer)
+test.csv Schema
+Column	Type	Description
+id	int	Unique identifier
+image_filename	string	Filename of the maze image. Located in test_images/
+question	string	Fixed English prompt describing the maze rules
+Note: test.csv does NOT contain target_steps. Agents must predict this value for each row and submit via submission.csv.
+
+Maze Rules
+Visual Elements
+Each maze image (PNG, ~700×700 pixels) contains the following visual elements:
+
+Visual Element	Color	Shape	Meaning
+Red Agent	Red	Filled circle ●	Starting position of the red player
+Red Target	Red	X marker ✕	Destination for the red player
+Blue Agent	Blue	Filled circle ●	Starting position of the blue player
+Blue Target	Blue	X marker ✕	Destination for the blue player
+Door	Gold	Square with diagonal cross 🔒	Locked gate — acts as a wall by default
+Button	Yellow	Square ⏻	Pressure plate that controls the Door
+Walls	Black	Filled cells	Impassable barriers
+Paths	White	Empty cells	Passable corridors
+Legend	—	Bottom bar	Labels all 6 entities
+Movement Rules
+Each "move" consists of exactly ONE agent moving ONE cell in a cardinal direction (up, down, left, or right) to an adjacent non-wall cell.
+Only one agent moves per step. The other agent stays in place.
+Two agents cannot occupy the same cell simultaneously.
+The Cooperative Constraint (The Twist)
+The Door is impassable (acts as a wall) unless an agent is currently standing on the Button.
+If the agent steps off the Button, the Door locks again immediately.
+The Door is structurally positioned as a bridge (articulation point) in the maze graph, meaning the Red Agent MUST pass through the Door to reach the Red Target. There is no alternative path.
+This forces genuine cooperation: one agent must navigate to the Button and hold it while the other passes through the Door, then both must reach their respective targets.
+Goal State
+The puzzle is solved when Red Agent is on Red Target AND Blue Agent is on Blue Target, simultaneously.
+
+Difficulty and Challenges
+Why This Is Hard
+Challenge	Description
+Visual parsing	Agent must extract maze structure, wall positions, and entity locations from a pixel image
+4D state space	Joint state (red_r, red_c, blue_r, blue_c) grows up to ~10,000+ reachable states per maze
+Dynamic constraint	Door opens/closes based on real-time agent position on the Button
+Cooperative planning	Agents cannot be solved independently — their actions are interdependent
+Optimal counting	Must find the provably minimum total moves, not just any solution
+Common Pitfalls
+Solving agents independently: Ignoring the Door constraint produces wrong answers.
+Ignoring the Door mechanic: Treating the Door as always open or always closed misses the cooperative element.
+Approximate counting: Close-enough estimates fail because the evaluation penalizes every step of error equally.
+Misreading the image: Confusing the Door (gold with cross) with the Button (yellow square), or mixing up Red/Blue agents.
+Submission
+Submit a CSV file named submission.csv with the following format:
+
+Column	Type	Description
+id	int	Puzzle identifier from test.csv
+target_steps	int	Predicted minimum total number of moves
+Requirements:
+
+Must contain one row per test puzzle
+Include header row: id,target_steps
+Each id must match an ID from test.csv
+No duplicate id values
+Example:
+
+id,target_steps  
+4001,127  
+4002,203  
+4003,89  
+ 
+
+ Author’s Initial Rubric
+5 criteria
+0 items
+·
+0 contributors
+·
+Draft
+Agent must implement visual parsing to extract maze grid structure, wall positions, and all 6 entity coordinates directly from the PNG image — not from any metadata or hardcoded assumptions.
+
+This is a visual reasoning challenge. The only input is a maze image — there is no structured representation of the maze grid, entity positions, or wall layout provided in the CSV. Agents that skip image parsing (e.g., predicting the mean of training target_steps, or using only statistical features from the CSV) will have fundamentally wrong answers. Accurate OCR/vision-based extraction of a 21×21 grid with 6 distinct colored markers from a ~700px PNG is non-trivial and is the core capability being tested.
+
+MODELING
+REQUIRED
+Agent must correctly implement the cooperative Door-Button mechanic: the Door is passable only when an agent occupies the Button cell, and this constraint must be checked dynamically at each state transition during pathfinding.
+
+The Door-Button constraint is the defining difficulty of this challenge. The Door is the ONLY path between Red Agent and Red Target (structurally guaranteed by Tarjan's articulation point). Agents that ignore the Door constraint (treating it as always open or always closed) or that solve each agent's path independently will produce systematically wrong answers. The dynamic nature of the constraint — the Door opens/closes based on real-time agent position — requires joint state tracking, not independent pathfinding.
+
+MODELING
+REQUIRED
+Agent must search over the joint 4D state space (red_row, red_col, blue_row, blue_col) using an optimal search algorithm such as BFS, rather than solving each agent's path independently or using heuristic approximations.
+
+The minimum total moves cannot be computed by solving Red and Blue paths separately and summing them. The agents' movements are interdependent: Blue must reach the Button before Red can pass the Door, and the ordering and timing of moves matters. The state space is 4-dimensional (~10,000+ reachable states per maze). Only a joint-state search (such as BFS on the 4D space) guarantees optimal answers. Greedy or heuristic approaches will consistently overestimate the step count, reducing the MAE score.
+
+MODELING
+REQUIRED
+Agent must produce predictions for all 1000 test samples with no missing IDs, and output a correctly formatted submission.csv with exactly two columns (id, target_steps) containing integer values.
+
+The grading function merges submission on id and raises an error for any missing predictions. Partial submissions (e.g., only predicting for mazes the agent could parse) will fail grading entirely. Agents must handle all 1000 test mazes end-to-end, including edge cases where visual parsing is ambiguous or pathfinding takes longer. This tests robustness and pipeline reliability, not just algorithm correctness on easy examples.
+
+DATA HANDLING
+REQUIRED
+Agent must not use dataset fingerprinting, answer leakage, or statistical shortcuts such as predicting the training set mean/median for all test samples, or memorizing target_steps distributions without actually solving each maze.
+
+Since target_steps ranges from 18 to 367 with mean ~150, a naive agent could predict 150 for every test sample and achieve MAE ~53 (Score ~0.019). This shortcut bypasses the entire visual reasoning challenge. The rubric ensures agents actually solve each maze individually. Any submission where >90% of predictions are identical, or where predictions do not vary with maze difficulty, should be considered a violation. The challenge evaluates genuine visual reasoning and cooperative pathfinding, not statistical guessing.
+
+AGENT BEHAVIOR
+REQUIRED

@@ -1,0 +1,137 @@
+Randomized Sentence Recovery Challenge
+Editor View
+Randomized Sentence Recovery Challenge
+Flag Problem
+Domain
+Sequence To Sequence
+Difficulty
+Medium
+Scoring
+↓ Lower is better
+Status
+Accepted
+Tags:
+text
+Dataset source is visible after the challenge closes.
+Description
+Leaderboard
+(3)
+Rubrics
+Your Submissions
+Randomized Sentence Recovery Challenge
+Overview
+Human language encodes meaning through three interdependent structural signals: word order, punctuation, and capitalization. These signals normally reinforce each other to define grammatical structure and sentence boundaries. When they are simultaneously disrupted, the surface form of a sentence can collapse into what appears to be an unordered collection of tokens.
+
+In this challenge, the goal is to reconstruct the exact original sentence from a corrupted version of the same sentence. Each input sentence is derived from a well-formed English sentence but undergoes several transformations designed to remove structural cues. Words may be randomly permuted, capitalization patterns may be altered or redistributed, and punctuation may be removed or inserted at incorrect positions. Although the original vocabulary remains present, the structural signals that normally guide interpretation are partially or entirely destroyed.
+
+Because punctuation placement depends on syntactic structure, word ordering depends on clause boundaries, and capitalization often depends on sentence structure, these components must be recovered jointly rather than independently.
+
+Dataset
+The dataset is constructed from a collection of general-purpose English sentences drawn from publicly available text sources. These sentences are written in standard grammatical form with correct punctuation and capitalization.
+
+During dataset preparation, each sentence is transformed into a corrupted input by applying a combination of structural perturbations:
+
+Word permutation — words may be randomly shuffled
+Capitalization perturbation — casing may be altered or redistributed across characters
+Punctuation corruption — punctuation marks may be removed or inserted at incorrect positions
+Not every sentence undergoes the same transformation pattern. Some inputs may only contain punctuation removal, while others may contain full word permutations combined with casing and punctuation noise.
+
+Evaluation
+Submissions are evaluated using Average Character Error Rate (ACER).
+
+For each sentence, the Character Error Rate (CER) is computed individually as the edit distance between the predicted sentence and the ground-truth sentence divided by the length of the ground-truth sentence. The final score is obtained by averaging the CER across all sentences.
+
+This ensures that each sentence contributes equally to the final score, preventing longer sentences from dominating the evaluation.
+
+Lower scores indicate better performance, with a perfect reconstruction achieving a score of 0.
+
+def evaluate(y_true, y_pred):
+    import editdistance
+    
+    cer_scores = []
+    
+    for t, p in zip(y_true, y_pred):
+        cer = editdistance.eval(t, p) / max(len(t), 1)
+        cer_scores.append(cer)
+        
+    return sum(cer_scores) / len(cer_scores)
+Dataset
+The prepared dataset is organized as follows:
+
+public/
+    train.csv
+    test.csv
+train.csv
+Training data containing corrupted sentences and their correct versions.
+
+It consists of 6869 records.
+
+| Column   | Type   | Description                                                                 |
+| -------- | ------ | --------------------------------------------------------------------------- |
+| id       | int    | Unique identifier                                                           |
+| sentence | string | Sentence with shuffled word order, altered casing, and modified punctuation |
+| target   | string | Original correctly formatted sentence                                       |
+
+test.csv
+Test data used for generating predictions.
+
+Its consists of 2944 records.
+
+| Column   | Type   | Description                                 |
+| -------- | ------ | ------------------------------------------- |
+| id       | int    | Unique identifier                           |
+| sentence | string | Corrupted sentence requiring reconstruction |
+
+Submission
+Submit a CSV file with the following format:
+
+| Column     | Type   | Description                    |
+| ---------- | ------ | ------------------------------ |
+| id         | int    | Row identifier from `test.csv` |
+| prediction | string | Reconstructed sentence         |
+Example of submission.csv :
+
+id,prediction
+0,The boy said hello to the teacher before leaving the classroom.
+1,She carefully placed the old book back on the wooden shelf.
+2,The storm clouds gathered slowly over the quiet coastal town.
+3,A small dog ran quickly across the empty park chasing a ball.
+4,The scientist recorded the experiment results in a detailed notebook.
+Requirements:
+
+Must contain exactly the same no. of rows as test.csv
+Include a header row
+Each prediction must contain the fully reconstructed sentence with correct word order, capitalization, and punctuation.
+ 
+
+Ready to Solve
+This challenge has been reviewed and approved. Start solving to submit your solution!
+
+Start New Solution
+Submission Credits
+5/6
+Next credit in 2h 53m
+
+Learn more about submission credits
+21/8
+solver slots
+Closing soon
+A closing deadline has been set. 1 more distinct solver needed to activate the $650 prize pool. Submit before the deadline!
+
+Closing in 15h 16m
+
+Submit your solution before the deadline. Payouts are processed after the challenge closes.
+
+Creator reward for this problem
+$
+400
+–
+500
+Submissions
+65
+Top Score
+0.509
+Created
+Mar 5, 2026
+
+Agent Evaluations

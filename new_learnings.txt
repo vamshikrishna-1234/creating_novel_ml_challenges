@@ -1,0 +1,283 @@
+================================================================================
+NEW LEARNINGS — What Makes These 5 Reference Challenges Accepted
+================================================================================
+
+Source: 5 reference challenges from Challenges_accepted_5th_april/
+  [TRAIN-FROM-SCRATCH — pretrained models NOT allowed]
+    1. Old Norse Saga Language Model Training        (NLP, Hard)
+    2. Byte-Level LLM Pretraining: The MIPS32 Autopsy (Seq2Seq, Hard)
+    3. Symbolic World Modeling Challenge              (Seq2Seq, Hard)
+  [FINE-TUNING — genuine fine-tuning required]
+    4. Mathematical Reasoning Trace Generation        (Fine-Tuning, Medium)
+    5. MRT Transit Map Transfer Reasoning Challenge   (Fine-Tuning, Hard)
+
+Also observed in the same folder (bonus reference):
+    6. The Protein Oracle (Amino Acid Sequence)       (Seq2Seq, Medium)
+    7. Collaborative Two-Agent Maze Solver            (CV, Hard)
+    8. Policy-Aware Multi-Hop Reasoning (RAG)         (RAG, Hard)
+
+================================================================================
+PATTERN 1: DATA LIVES IN A DOMAIN THAT PRETRAINED MODELS CANNOT HANDLE
+================================================================================
+
+Every accepted challenge picks a domain where LLMs/foundation models are
+genuinely blind. This is the single most important design choice.
+
+  - Old Norse:   extinct language, no modern LLM has Old Norse morphology
+  - MIPS32:      raw hex bytecode, BPE tokenizers destroy instruction boundaries
+  - Symbolic:    synthetic grid worlds with hidden rule programs, zero world knowledge
+  - Math Traces: olympiad-tier derivations, not memorizable step-by-step
+  - MRT Transit: fully synthetic transit maps, fictional station names
+  - Amino Acid:  protein sequences follow biochemical grammar, not English
+  - Maze Solver: cooperative pathfinding from pixel images, no text shortcut
+  - Policy RAG:  all real entities mapped to fictional names (Aethelgard, Archon)
+
+LESSON: If an agent can get >50% by prompting GPT-4 zero-shot, the challenge
+will be rejected as trivial. The data domain must FORCE training/fine-tuning.
+
+================================================================================
+PATTERN 2: EXPLICIT "WHY PRETRAINED FAILS" NARRATIVE IN DESCRIPTION
+================================================================================
+
+Every accepted challenge has 1-3 paragraphs explaining exactly WHY standard
+pretrained models cannot shortcut the task. They name specific failure modes:
+
+  - Old Norse:   "Pre-trained English models cannot handle Old Norse — the
+                  characters, case system, and vocabulary have no overlap"
+  - MIPS32:      3 named traps: "Tokenizer Massacre", "O3 Scramble",
+                  "Quadratic Context Choking"
+  - Symbolic:    "Participants do not see the rule program... must infer it
+                  from demonstration episodes"
+  - Math Traces: "Symbolic Trace Degeneration" + "OOD Difficulty Generalization"
+  - MRT Transit: "removes reliance on real-world priors and eliminates
+                  shortcuts tied to memorization or geographic familiarity"
+
+LESSON: Don't just say "pretrained models can't do this." Explain the specific
+mechanisms that break them. Name the traps. This convinces reviewers.
+
+================================================================================
+PATTERN 3: TRAINING MANDATE WITH EXPLICIT CONSTRAINTS
+================================================================================
+
+Every challenge states a clear, verifiable training requirement:
+
+  Train-from-scratch:
+  - Old Norse:   "train from random initialization within 30 min on single GPU"
+  - MIPS32:      "train a custom byte-level language model from scratch"
+  - Symbolic:    "train an autoregressive model"
+  - Amino Acid:  "under 50M parameters, no pretrained weights from ANY model"
+
+  Fine-tuning:
+  - Math Traces: "fine-tune open-weights LLM of 8B parameters or fewer"
+  - MRT Transit: "meaningful learning-based component must remain central"
+
+  Common parameter caps:
+  - 50M params (Old Norse, Amino Acid) — for train-from-scratch
+  - 8B params (Math Traces) — for fine-tuning
+  - 3B params — also reasonable for fine-tuning
+
+LESSON: Always include a concrete parameter limit AND a prohibition on
+pretrained/closed-source models. Make it a REQUIRED rubric.
+
+================================================================================
+PATTERN 4: EVALUATION IS MULTI-DIMENSIONAL OR ADVERSARIAL
+================================================================================
+
+No accepted challenge uses plain accuracy on an easy format. They all have
+evaluation twists that prevent gaming:
+
+  Simple but adversarial:
+  - Old Norse:   accuracy, BUT distractors share suffix + frequency + same saga
+  - Symbolic:    exact sequence match (extremely strict — all-or-nothing)
+  - Amino Acid:  per-residue positional accuracy (char-level, not word-level)
+
+  Composite metrics:
+  - MIPS32:      Mean Normalized Edit Distance (partial credit for ordering)
+  - Math Traces: 4-component MRTI = 0.20×ROUGE-L + 0.40×MathEntityF1 + 
+                 0.20×chrF + 0.20×BLEU-2, with difficulty weighting
+  - MRT Transit: 0.70×Transfer Score + 0.30×Valid Route Score, where route
+                 validity is checked against the hidden graph
+  - Maze Solver: 1/(1+MAE) — penalizes every step of error equally
+  - Policy RAG:  Token F1 with hard RESTRICTED check (0.0 for any deviation)
+
+  Anti-gaming mechanisms:
+  - Math Traces: MathEntityF1 uses F1 (precision penalizes spam)
+  - MRT Transit: route must be structurally valid, not just correct count
+  - MIPS32:      output must be valid JSON array, else 0.0 per row
+  - Policy RAG:  "RESTRICTED" must be exact string, else 0.0
+
+LESSON: Design evaluation that penalizes partial/fake answers. Composite
+metrics with 2-4 components are preferred. At least one component should
+be strict (exact match or structural validity).
+
+================================================================================
+PATTERN 5: ADVERSARIAL TEST DESIGN — NOT JUST RANDOM HOLDOUT
+================================================================================
+
+The test set is HARDER than training, not just a random subset:
+
+  - Old Norse:   test from 7 HELD-OUT SAGAS (not sentences from training sagas)
+  - MIPS32:      unseen binaries (different algorithms entirely)
+  - Symbolic:    "hard unseen transformation families" — novel rule compositions
+  - Math Traces: "stratified splitting across advanced olympiad-tier math"
+  - MRT Transit: 1000 train vs 3500 test (intentionally inverted ratio!),
+                 test has broader topology coverage + metadata stripped
+  - Policy RAG:  BURN_NOTICE traps that cascade and change state mid-reasoning
+
+LESSON: The test set should contain distribution shifts, novel combinations,
+or harder instances than training. This is what creates the Human > Agent gap.
+
+================================================================================
+PATTERN 6: RUBRICS ARE SPECIFIC TO THE CHALLENGE'S UNIQUE TRAPS
+================================================================================
+
+Every rubric references the specific data/mechanics of THIS challenge:
+
+  Good rubrics (from accepted challenges):
+  - "Train a custom subword tokenizer directly on the Old Norse corpus that
+     handles thorn, eth, accented vowels" (Old Norse)
+  - "The preprocessing pipeline must implement byte-level tokenization or
+     4-byte architectural sliding windows" (MIPS32)
+  - "The agent must preserve task grouping and episode structure during
+     preprocessing" (Symbolic)
+  - "MathEntityF1 aggressively scans for exact entity recall" (Math Traces)
+  - "Purely rule-based, symbolic, or hardcoded systems are not permitted as
+     standalone solutions" (MRT Transit)
+
+  Rubric counts in accepted challenges:
+  - Old Norse:   7 rubrics (0 REQUIRED, 7 RECOMMENDED/UNIVERSAL)
+  - MIPS32:      6 rubrics (3 REQUIRED, 3 RECOMMENDED)
+  - Symbolic:    6 rubrics (4 REQUIRED, 1 RECOMMENDED, 1 UNIVERSAL — wait, actually 5 REQUIRED, 1 RECOMMENDED)
+  - Math Traces: 4 rubrics (1 REQUIRED, 3 RECOMMENDED) — note: ONLY 4, not 5+
+  - MRT Transit: 5 rubrics (3 REQUIRED, 2 RECOMMENDED)
+  - Amino Acid:  5 rubrics (2 REQUIRED, 3 RECOMMENDED)
+  - Maze Solver: 5 rubrics (5 REQUIRED, 0 RECOMMENDED)
+  - Policy RAG:  6 rubrics (4 REQUIRED, 2 RECOMMENDED)
+
+LESSON: 5-7 rubrics is the sweet spot. At least 50% should be REQUIRED.
+Every rubric must name a specific aspect of THIS challenge's data or mechanic.
+The rationale should explain what goes wrong if you violate the criterion.
+
+================================================================================
+PATTERN 7: DOMAIN SELECTION MATCHES ACTUAL TASK STRUCTURE
+================================================================================
+
+  Train-from-scratch challenges:
+  - Old Norse → NLP (cloze task on text)
+  - MIPS32 → Sequence To Sequence (hex → function call sequence)
+  - Symbolic → Sequence To Sequence (demo episodes → future frames)
+  - Amino Acid → Sequence To Sequence (protein prefix → continuation)
+
+  Fine-tuning challenges:
+  - Math Traces → Fine-Tuning
+  - MRT Transit → Fine-Tuning
+
+  Other:
+  - Maze Solver → Computer Vision (image → integer)
+  - Policy RAG → RAG (documents + query → answer)
+
+LESSON: Train-from-scratch challenges go under NLP or Seq2Seq (since the model
+is built from scratch, "Fine-Tuning" domain doesn't apply). Fine-tuning
+challenges go under Fine-Tuning. Pick the domain that matches what the solver
+actually does, not what the data looks like.
+
+================================================================================
+PATTERN 8: COMPELLING NARRATIVE — NOT "PREDICT X FROM Y"
+================================================================================
+
+Every accepted challenge tells a STORY about why this matters:
+
+  - Old Norse:   "one of the most morphologically complex Germanic languages
+                  ever recorded" + Icelandic saga literary heritage
+  - MIPS32:      "high-stakes world of systems programming and malware analysis"
+                  + "optimizing compiler acts like a destructive, one-way
+                  cryptographic hash"
+  - Symbolic:    ARC-like "infer hidden transformation rules from demonstrations"
+  - Math Traces: "frontier of artificial intelligence capability" +
+                  "distilling into constrained networks is the definitive target"
+  - MRT Transit: "diagram-to-graph reconstruction from purely visual input"
+  - Maze Solver: "cooperative constraint" + door/button mechanic
+  - Policy RAG:  enterprise security with "Sigma Paradox" + "Contagion Trap"
+
+LESSON: Frame the challenge as solving a real problem or exploring a
+fascinating domain. Name the specific difficulty mechanisms. Use vivid
+language for the traps/twists. This is what the user means by "personal"
+and "not AI slop."
+
+================================================================================
+PATTERN 9: DATA SIZE IS INTENTIONALLY CONSTRAINED
+================================================================================
+
+  - Old Norse:   800K tokens (35 sagas) — tiny for LLM training
+  - MIPS32:      ~10K samples total
+  - Symbolic:    tasks with 3-5 demo episodes each, few-shot by design
+  - Math Traces: ~4000 train / ~1000 test
+  - MRT Transit: 1000 train / 3500 test (INVERTED — smaller train!)
+  - Amino Acid:  not specified but small enough for 50M model
+  - Maze Solver: 4000 train / 1000 test
+
+LESSON: Small training data is a FEATURE, not a bug. It forces efficient
+learning, prevents memorization, and widens the Human > Agent gap. 
+3000-5000 training samples is typical.
+
+================================================================================
+PATTERN 10: TIME/COMPUTE CONSTRAINTS CREATE URGENCY
+================================================================================
+
+  - Old Norse:   "within 30 minutes on a single GPU"
+  - MIPS32:      "within the platform limits utilizing an NVIDIA H100"
+  - Symbolic:    "strict 60-90 minute training budget"
+  - Math Traces: H100 provisioned (implied time limit)
+  - MRT Transit: H100 provisioned (implied time limit)
+
+LESSON: Mention the compute environment (H100) and any time limits in the
+challenge description. This constrains brute-force approaches and makes
+efficient architecture choices a real differentiator.
+
+================================================================================
+SUMMARY: THE ACCEPTANCE FORMULA
+================================================================================
+
+An accepted challenge has ALL of these:
+
+  1. DOMAIN IMMUNITY    — Data that pretrained models genuinely can't handle
+  2. EXPLICIT WHY       — Named failure modes for standard approaches
+  3. TRAINING MANDATE   — Parameter cap + prohibition on pretrained weights
+  4. SMART EVALUATION   — Composite metric or structural validity check
+  5. ADVERSARIAL TEST   — Distribution shift, novel combos, or harder instances
+  6. SPECIFIC RUBRICS   — 5-7, each naming a trap/mechanic from THIS challenge
+  7. RIGHT DOMAIN TAG   — NLP/Seq2Seq for scratch, Fine-Tuning for fine-tuning
+  8. COMPELLING STORY   — Named traps, vivid framing, real motivation
+  9. SMALL DATA         — 3000-5000 train samples, forces efficient learning
+  10. COMPUTE BOUNDS    — H100 + time limit mentioned
+
+If ANY of these is missing or weak, the challenge risks rejection.
+
+================================================================================
+TACTICAL NOTES FOR OUR IRONHOLD CHALLENGE
+================================================================================
+
+Checking Ironhold against the 10 patterns:
+
+  1. DOMAIN IMMUNITY     ✅ Fictional game rules, not in any pretraining data
+  2. EXPLICIT WHY        ✅ "Ironhold Arena rulebook is entirely synthetic"
+                         ⚠️ Could strengthen: add named failure modes like
+                         "The Combination Explosion" and "The Priority Trap"
+  3. TRAINING MANDATE    ✅ ≤3B params, open-weights, no API calls
+  4. SMART EVALUATION    ✅ 3-component composite (verdict + citation F1 + reasoning)
+  5. ADVERSARIAL TEST    ⚠️ Test has balanced random split — could add novel
+                         rule combinations not seen in training
+  6. SPECIFIC RUBRICS    ✅ 7 rubrics, 3 REQUIRED, 4 RECOMMENDED
+  7. RIGHT DOMAIN TAG    ✅ Fine-Tuning domain
+  8. COMPELLING STORY    ⚠️ Could be more vivid — name the traps like MIPS32 does
+  9. SMALL DATA          ✅ 3750 train samples
+  10. COMPUTE BOUNDS     ⚠️ Should mention H100 and time limit in description
+
+ACTION ITEMS:
+  - Add named difficulty traps ("The Priority Override Chain", "The Phantom Rule",
+    "The Coverage Gap") to the challenge description
+  - Ensure test set has novel rule combinations (rule pairs not seen in training)
+  - Add H100 mention and 30-minute time limit to description
+  - Strengthen the "why pretrained fails" section with 2-3 named mechanisms
+
+================================================================================
