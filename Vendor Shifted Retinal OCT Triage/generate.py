@@ -51,9 +51,18 @@ robustness, layer-position regression, calibration):
 USAGE
 -----
     pip install requests pillow numpy pandas tqdm
-    python generate.py --out raw_data
-    python generate.py --out raw_data --max-per-class 1500 --max-edge 512
-    python zip_raw_for_upload.py
+
+    # Recommended (Mendeley rotated direct-download API IDs; browser download is reliable):
+    #   1) Open https://data.mendeley.com/datasets/rscbjbr9sj/3  →  Download All  →  OCT2017.zip
+    #   2) Then:
+    python generate.py --out raw_data --zip "%USERPROFILE%\\Downloads\\OCT2017.zip"
+
+    # Or point at an already-unpacked tree (must contain train/{CNV,DME,DRUSEN,NORMAL}/):
+    python generate.py --out raw_data --extracted "D:\\OCT2017"
+
+    python zip_raw_for_upload.py --raw raw_data --out OCT_RAW_upload.zip
+
+Automatic HTTP download is attempted only if you pass --try-auto-download (legacy).
 """
 from __future__ import annotations
 
@@ -64,16 +73,24 @@ import shutil
 import sys
 import zipfile
 from pathlib import Path
-from typing import List
+from typing import Dict, List, Optional
 
-
-# Mendeley Data v2 download URL of the OCT2017 zipped archive (server may
-# require following a redirect; we stream-download with retry-aware code).
-MENDELEY_OCT_URL = (
+# Legacy public-files URL — as of 2026 returns JSON {"code":404} (file id rotated).
+# Use --zip after downloading from the Mendeley website, or --extracted.
+MENDELEY_OCT_URL_LEGACY = (
     "https://data.mendeley.com/public-files/datasets/rscbjbr9sj/files/"
     "6f650b8c-91c7-43b8-a3c8-ccba8ef3e0c9/file_downloaded"
 )
 DISEASES = ("CNV", "DME", "DRUSEN", "NORMAL")
+
+REQUEST_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    ),
+    "Accept": "application/octet-stream,*/*;q=0.8",
+    "Referer": "https://data.mendeley.com/datasets/rscbjbr9sj/3",
+}
 
 
 def _file_md5(path: Path, chunk: int = 1 << 20) -> str:
@@ -87,18 +104,147 @@ def _file_md5(path: Path, chunk: int = 1 << 20) -> str:
     return h.hexdigest()
 
 
-def _download(url: str, dst: Path) -> None:
+def _is_zip_file(path: Path) -> bool:
+    try:
+        return path.is_file() and zipfile.is_zipfile(path)
+    except OSError:
+        return False
+
+
+def _download_zip_auto(url: str, dst: Path) -> None:
+    """Stream-download `url` into `dst` and verify it is a real ZIP.
+
+    Mendeley often returns JSON `{'code':404}` with HTTP 200 — we reject that.
+    """
     import requests
-    if dst.exists() and dst.stat().st_size > 0:
-        return
-    print(f"[generate] downloading {url}")
-    with requests.get(url, stream=True, timeout=600) as r:
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(dst.name + ".partial")
+    tmp.unlink(missing_ok=True)
+    print(f"[generate] trying automatic download: {url}")
+    with requests.get(
+        url,
+        stream=True,
+        timeout=600,
+        headers=REQUEST_HEADERS,
+        allow_redirects=True,
+    ) as r:
         r.raise_for_status()
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        with open(dst, "wb") as f:
+        ct = (r.headers.get("content-type") or "").lower()
+        if "json" in ct:
+            body = r.content[:800]
+            raise RuntimeError(
+                f"Server returned JSON instead of a ZIP (content-type={ct!r}). "
+                f"Snippet: {body!r}"
+            )
+        with open(tmp, "wb") as f:
             for chunk in r.iter_content(chunk_size=1 << 20):
                 if chunk:
                     f.write(chunk)
+    # Peek at magic bytes — ZIP local header starts with PK\x03\x04
+    with open(tmp, "rb") as f:
+        sig = f.read(4)
+    if sig[:2] != b"PK":
+        peek = tmp.read_text(encoding="utf-8", errors="replace")[:500]
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"Download is not a ZIP (magic={sig!r}). "
+            f"Mendeley may have returned an error page instead of OCT2017.zip. Snippet: {peek!r}"
+        )
+    if not zipfile.is_zipfile(tmp):
+        tmp.unlink(missing_ok=True)
+        raise RuntimeError("Downloaded file failed zipfile validation.")
+    tmp.replace(dst)
+
+
+def _find_kermany_layout_root(search: Path) -> Path:
+    """Find folder that contains ``train/CNV`` … ``train/NORMAL`` (Kermany layout)."""
+    search = Path(search).resolve()
+    candidates = [
+        search,
+        search / "OCT2017",
+        search / "kermany2018" / "OCT2017",
+    ]
+    for c in candidates:
+        if (c / "train" / "CNV").is_dir() and (c / "train" / "NORMAL").is_dir():
+            return c
+    for train_cn in search.glob("**/train/CNV"):
+        if train_cn.is_dir():
+            return train_cn.parent.parent
+    raise FileNotFoundError(
+        f"Could not find Kermany folder layout (train/{{CNV,DME,DRUSEN,NORMAL}}) "
+        f"under {search}"
+    )
+
+
+def _ensure_oct2017_source(
+    work: Path,
+    zip_arg: Optional[Path],
+    extracted_arg: Optional[Path],
+    try_auto: bool,
+) -> Path:
+    """Return the directory whose subtree matches ``_walk_extracted`` (has train/)."""
+    work.mkdir(parents=True, exist_ok=True)
+
+    if extracted_arg is not None:
+        root = _find_kermany_layout_root(Path(extracted_arg))
+        print(f"[generate] using unpacked source tree: {root}")
+        return root
+
+    archive = work / "OCT2017.zip"
+    if zip_arg is not None:
+        src_zip = Path(zip_arg).resolve()
+        if not src_zip.is_file():
+            raise FileNotFoundError(f"--zip file not found: {src_zip}")
+        if not _is_zip_file(src_zip):
+            raise ValueError(f"--zip is not a valid ZIP file: {src_zip}")
+        shutil.copy2(src_zip, archive)
+        print(f"[generate] copied local ZIP -> {archive}")
+
+    elif try_auto:
+        if archive.exists() and not _is_zip_file(archive):
+            print(f"[generate] removing corrupt non-ZIP file {archive}", file=sys.stderr)
+            archive.unlink()
+        if not archive.exists():
+            try:
+                _download_zip_auto(MENDELEY_OCT_URL_LEGACY, archive)
+            except Exception as exc:
+                raise RuntimeError(
+                    "Automatic Mendeley download failed (Elsevier rotates file IDs).\n"
+                    "Fix: open https://data.mendeley.com/datasets/rscbjbr9sj/3 in a browser, "
+                    "click **Download All**, save OCT2017.zip, then run:\n"
+                    f"  python generate.py --out raw_data --zip \"path\\\\to\\\\OCT2017.zip\"\n"
+                    f"Original error: {exc}"
+                ) from exc
+    else:
+        raise RuntimeError(
+            "No OCT source specified.\n"
+            "Either:\n"
+            "  python generate.py --out raw_data --zip \"path\\\\to\\\\OCT2017.zip\"\n"
+            "or:\n"
+            "  python generate.py --out raw_data --extracted \"D:\\\\path\\\\to\\\\OCT2017\"\n"
+            "where that folder contains train/CNV, train/DME, ...\n"
+            "Optional legacy flag: --try-auto-download (usually fails)."
+        )
+
+    # Resume: already unpacked under _work?
+    try:
+        root = _find_kermany_layout_root(work)
+        print(f"[generate] reusing existing tree under _work: {root}")
+        return root
+    except FileNotFoundError:
+        pass
+
+    if not archive.is_file():
+        raise RuntimeError("internal error: OCT2017.zip missing after download/copy step.")
+    if not _is_zip_file(archive):
+        raise ValueError(f"Not a valid ZIP archive: {archive}")
+
+    print(f"[generate] extracting {archive}")
+    with zipfile.ZipFile(archive, "r") as zf:
+        zf.extractall(work)
+
+    return _find_kermany_layout_root(work)
 
 
 def _layer_position_from_image(arr: "np.ndarray") -> float:
@@ -154,7 +300,14 @@ def _resize_long_edge(arr: "np.ndarray", max_edge: int) -> "np.ndarray":
     return np.asarray(img)
 
 
-def generate(out_dir: Path, max_per_class: int, max_edge: int) -> None:
+def generate(
+    out_dir: Path,
+    max_per_class: int,
+    max_edge: int,
+    zip_arg: Optional[Path],
+    extracted_arg: Optional[Path],
+    try_auto: bool,
+) -> None:
     import numpy as np
     from PIL import Image
 
@@ -164,16 +317,7 @@ def generate(out_dir: Path, max_per_class: int, max_edge: int) -> None:
     work = out_dir / "_work"
     work.mkdir(parents=True, exist_ok=True)
 
-    archive = work / "OCT2017.zip"
-    _download(MENDELEY_OCT_URL, archive)
-    extracted = work / "OCT2017"
-    if not extracted.is_dir():
-        print(f"[generate] extracting {archive}")
-        with zipfile.ZipFile(archive, "r") as zf:
-            zf.extractall(work)
-    canon_root = extracted if (extracted / "train").is_dir() else next(
-        (p for p in work.iterdir() if (p / "train").is_dir()), extracted
-    )
+    canon_root = _ensure_oct2017_source(work, zip_arg, extracted_arg, try_auto)
 
     # Bucket all source images by disease, then take a deterministic
     # per-class subsample so the resulting raw_data/ is small but each
@@ -234,6 +378,26 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", type=Path, default=Path(__file__).parent / "raw_data")
     ap.add_argument(
+        "--zip",
+        type=Path,
+        default=None,
+        help="Path to OCT2017.zip you downloaded from Mendeley (browser "
+             "Download All). Recommended; automatic URL often breaks.",
+    )
+    ap.add_argument(
+        "--extracted",
+        type=Path,
+        default=None,
+        help="Path to an already-unpacked Kermany tree containing "
+             "train/{CNV,DME,DRUSEN,NORMAL}/ (and test/, val/).",
+    )
+    ap.add_argument(
+        "--try-auto-download",
+        action="store_true",
+        help="Attempt legacy HTTP download from Mendeley (often returns 404 JSON; "
+             "not recommended).",
+    )
+    ap.add_argument(
         "--max-per-class",
         type=int,
         default=800,
@@ -250,7 +414,14 @@ def main() -> None:
              "banding fully resolvable. Pass 0 for native resolution.",
     )
     args = ap.parse_args()
-    generate(args.out, args.max_per_class, args.max_edge)
+    generate(
+        args.out,
+        args.max_per_class,
+        args.max_edge,
+        args.zip,
+        args.extracted,
+        args.try_auto_download,
+    )
 
 
 if __name__ == "__main__":

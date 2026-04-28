@@ -103,10 +103,28 @@ cd Vendor Shifted Retinal OCT Triage
 python -m pip install requests pillow numpy pandas tqdm
 ```
 
-**Download + build `raw_data/`** (Mendeley archive; one large zip, then extract):
+**Download + build `raw_data/`**
+
+The old **direct HTTP URL** inside `generate.py` often returns **JSON 404** (Mendeley rotates file IDs). Use the browser, then point `--zip` at the file:
+
+1. Open https://data.mendeley.com/datasets/rscbjbr9sj/3  
+2. Click **Download All** and save **OCT2017.zip** (large; several GB).  
+3. Run:
 
 ```bat
-python generate.py --out raw_data
+python generate.py --out raw_data --zip "%USERPROFILE%\Downloads\OCT2017.zip"
+```
+
+If you already unpacked the zip so you have folders `train/CNV`, `train/DME`, etc.:
+
+```bat
+python generate.py --out raw_data --extracted "D:\path\to\OCT2017"
+```
+
+Legacy automatic download (usually fails):
+
+```bat
+python generate.py --out raw_data --try-auto-download
 ```
 
 **Zip:**
