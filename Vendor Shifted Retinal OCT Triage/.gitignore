@@ -1,0 +1,10 @@
+# Generated / local — do not commit (regenerate with scripts)
+raw_data/
+pub/
+priv/
+public/
+private/
+__pycache__/
+*.pyc
+*_upload.zip
+*.zip
