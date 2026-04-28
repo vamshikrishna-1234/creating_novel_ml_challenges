@@ -51,6 +51,13 @@ python -m pip install pydicom requests pillow numpy pandas tqdm
 python generate.py --out raw_data
 ```
 
+If you see **`ConnectionResetError` / error `10054`** or many `[generate] retry` lines: TCIA is closing the connection (rate limit, Wi‑Fi, or ISP). **Nothing is wrong with your PC** — the script retries, then skips that view after repeated failure (`WARN`). Tips:
+
+- Wait **5–15 seconds between series** (default is **5**):  
+  `python generate.py --out raw_data --sleep-between-series 12`
+- Try another network (wired, phone hotspot, VPN on/off).
+- Run overnight; **rerunning the same command resumes**: already-downloaded PNGs stay in `raw_data/images/`.
+
 Smaller test run first:
 
 ```bat

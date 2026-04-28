@@ -122,7 +122,7 @@ def _fetch_pathology_csvs(work: Path) -> Dict[str, List[Dict[str, str]]]:
 
 def _fetch_image_series(series_uid: str, dst_zip: Path) -> None:
     """Download one mammogram series ZIP from TCIA. Large transfers may take many
-    minutes; uses generous timeouts and retries (TCIA is often slow).
+    minutes; uses generous timeouts and retries (TCIA often resets connections).
     """
     import requests
     import time
@@ -133,11 +133,24 @@ def _fetch_image_series(series_uid: str, dst_zip: Path) -> None:
     dst_zip.parent.mkdir(parents=True, exist_ok=True)
     # (connect timeout, read timeout) — read must allow multi‑GB series zips.
     timeout = (60, 3600)
-    max_retries = 6
+    max_retries = 12
+    # Some networks / TCIA rate limits respond better with a browser-like UA.
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (compatible; create_challenge_synthetic-generate/1.0; "
+            "+https://www.cancerimagingarchive.net/)"
+        ),
+        "Accept": "*/*",
+    }
     last_exc: Exception | None = None
     for attempt in range(max_retries):
         try:
-            with requests.get(url, stream=True, timeout=timeout) as r:
+            with requests.get(
+                url,
+                stream=True,
+                timeout=timeout,
+                headers=headers,
+            ) as r:
                 r.raise_for_status()
                 with open(dst_zip, "wb") as f:
                     for chunk in r.iter_content(chunk_size=1 << 20):
@@ -151,7 +164,9 @@ def _fetch_image_series(series_uid: str, dst_zip: Path) -> None:
                     dst_zip.unlink()
                 except OSError:
                     pass
-            wait = min(30 * (attempt + 1), 180)
+            # Exponential backoff capped at 5 minutes — error 10054 is common when
+            # the server or ISP resets mid-transfer.
+            wait = min(15 * (2**attempt), 300)
             print(
                 f"[generate] retry {attempt + 1}/{max_retries} for series "
                 f"{series_uid[:32]}... after {exc!r}; sleeping {wait}s",
@@ -246,7 +261,14 @@ def _normalise_view(breast: str, view: str) -> str:
     return ("L" if breast == "LEFT" else "R") + view
 
 
-def generate(out_dir: Path, max_patients: int, max_edge: int) -> None:
+def generate(
+    out_dir: Path,
+    max_patients: int,
+    max_edge: int,
+    sleep_between_series: float,
+) -> None:
+    import time
+
     import pandas as pd
 
     out_dir = Path(out_dir)
@@ -265,10 +287,11 @@ def generate(out_dir: Path, max_patients: int, max_edge: int) -> None:
         patient_ids = patient_ids[:max_patients]
     print(
         f"[generate] fetching {len(patient_ids)} patients "
-        f"(max_edge={max_edge}px)"
+        f"(max_edge={max_edge}px, sleep_between_series={sleep_between_series}s)"
     )
 
     cases_rows: List[Dict[str, str]] = []
+    series_idx_global = 0
     for pid in patient_ids:
         views_for_patient = by_patient[pid]
         # If the patient has any malignancy on exactly one side, asymmetric=1.
@@ -279,6 +302,11 @@ def generate(out_dir: Path, max_patients: int, max_edge: int) -> None:
             series_uid = _series_uid_from_image_path(r["image_path"])
             if not series_uid:
                 continue
+            # Gentle throttle: hitting TCIA too fast often triggers connection
+            # resets (Windows error 10054).
+            if sleep_between_series > 0 and series_idx_global > 0:
+                time.sleep(sleep_between_series)
+            series_idx_global += 1
             zip_path = work / f"{series_uid}.zip"
             png_name = f"{pid}__{_normalise_view(r['breast'], r['view'])}__{r['abnormality_type']}.png"
             png_path = images_dir / png_name
@@ -363,8 +391,21 @@ def main() -> None:
              "image around 0.2-0.4 MB. Set 0 to keep native DICOM resolution "
              "(produces multi-MB PNGs and a much larger raw_data/).",
     )
+    ap.add_argument(
+        "--sleep-between-series",
+        type=float,
+        default=5.0,
+        help="Seconds to wait between each TCIA series download (after the "
+             "first). Default 5 reduces connection-reset errors (10054). "
+             "Set 0 to disable.",
+    )
     args = ap.parse_args()
-    generate(args.out, args.max_patients, args.max_edge)
+    generate(
+        args.out,
+        args.max_patients,
+        args.max_edge,
+        args.sleep_between_series,
+    )
 
 
 if __name__ == "__main__":
