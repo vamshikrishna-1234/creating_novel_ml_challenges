@@ -45,20 +45,40 @@ cd Bilateral Asymmetry Anchored Mammography Triage
 python -m pip install pydicom requests pillow numpy pandas tqdm
 ```
 
-**Download + build `raw_data/`** (TCIA; slow, may retry often):
+### Two ways to get the DICOMs
+
+#### **Recommended: use the TCIA website + NBIA Data Retriever** (most reliable)
+
+This avoids the flaky TCIA REST API entirely (the source of `ConnectionResetError` / Windows error `10054`).
+
+1. Open https://www.cancerimagingarchive.net/collection/cbis-ddsm/
+2. Scroll to the **Data Access** / **Download** section. Click the **Download** button — a small **`.tcia` manifest** file is saved.
+3. Install the **NBIA Data Retriever** desktop client (Windows installer is linked from the same page; the official wiki page is https://wiki.cancerimagingarchive.net/display/NBIA/NBIA+Data+Retriever).
+4. **Open the `.tcia` file** with NBIA Data Retriever. Accept the license, pick a destination folder (e.g. `D:\CBIS-DDSM-download`), click **Start**.
+   - The Retriever resumes interrupted downloads and is much more reliable than the API.
+   - You can also **deselect** patient rows in the Retriever UI before clicking Start to download only a subset (e.g. 200–400 patients) to keep it small.
+5. After the download finishes, in this folder run:
+
+```bat
+python generate_from_local_dicoms.py --src "D:\CBIS-DDSM-download" --out raw_data
+```
+
+That converts the local DICOMs into the same `raw_data/` schema (no API calls). It is **resumable** — re-running skips PNGs that already exist.
+
+#### Alternative: API-based `generate.py`
 
 ```bat
 python generate.py --out raw_data
 ```
 
-If you see **`ConnectionResetError` / error `10054`** or many `[generate] retry` lines: TCIA is closing the connection (rate limit, Wi‑Fi, or ISP). **Nothing is wrong with your PC** — the script retries, then skips that view after repeated failure (`WARN`). Tips:
+If you see **`ConnectionResetError` / error `10054`** or many `[generate] retry` lines: TCIA's API is closing the connection. The script retries, then skips that view after repeated failure (`WARN`). You can:
 
-- Wait **5–15 seconds between series** (default is **5**):  
-  `python generate.py --out raw_data --sleep-between-series 12`
-- Try another network (wired, phone hotspot, VPN on/off).
-- Run overnight; **rerunning the same command resumes**: already-downloaded PNGs stay in `raw_data/images/`.
+- Slow it down: `python generate.py --out raw_data --sleep-between-series 12`
+- Try another network (wired, hotspot, VPN on/off).
+- Re-run later; existing PNGs in `raw_data/images/` are kept.
+- **Or just switch to the Recommended path above** — much more reliable.
 
-Smaller test run first:
+Smaller test run (API path):
 
 ```bat
 python generate.py --out raw_data --max-patients 10
